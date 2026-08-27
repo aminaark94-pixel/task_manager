@@ -1,0 +1,10 @@
+{
+  "name": "Remix Family Task Manager",
+  "description": "A collaborative family task manager with Supabase auth, Parent/Child roles, recurring \u0026 one-time tasks, Web Speech API voice input, and exportable single-file HTML package with Roman Urdu setup guide.",
+  "requestFramePermissions": [
+    "microphone"
+  ],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
