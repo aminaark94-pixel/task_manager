@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { 
   Sparkles, 
   CalendarCheck, 
@@ -28,8 +28,16 @@ import { ActivityLogsView } from './components/ActivityLogsView';
 import { TaskModal } from './components/TaskModal';
 import { VoiceAssistantModal } from './components/VoiceAssistantModal';
 import { ExportDownloadModal } from './components/ExportDownloadModal';
-import { SupabaseConfigModal } from './components/SupabaseConfigModal';
-import { FamilyMember, Task, TaskLog, SupabaseConfig, isTaskAssignedTo, getTaskAssigneeIds } from './types';
+import { MemberFormModal } from './components/MemberFormModal';
+import {
+  subscribeToMembers,
+  subscribeToTasks,
+  subscribeToTaskLogs,
+  saveMembersToCloud,
+  saveTasksToCloud,
+  saveTaskLogsToCloud
+} from './lib/firestoreSync';
+import { FamilyMember, Task, TaskLog, isTaskAssignedTo, getTaskAssigneeIds } from './types';
 
 // Default Family Roster
 const INITIAL_MEMBERS: FamilyMember[] = [
@@ -175,17 +183,13 @@ export default function App() {
   const [isVoiceModalOpen, setIsVoiceModalOpen] = useState(false);
   const [isExportModalOpen, setIsExportModalOpen] = useState(false);
   const [exportModalTab, setExportModalTab] = useState<'html' | 'sql' | 'guide'>('html');
-  const [isSupabaseModalOpen, setIsSupabaseModalOpen] = useState(false);
+  const [isMemberModalOpen, setIsMemberModalOpen] = useState(false);
+  const [editingMember, setEditingMember] = useState<FamilyMember | null>(null);
+  const [cloudStatus, setCloudStatus] = useState<'connecting' | 'connected' | 'error'>('connecting');
 
-  const [supabaseConfig, setSupabaseConfig] = useState<SupabaseConfig>(() => {
-    const url = localStorage.getItem('family_supa_url') || '';
-    const anonKey = localStorage.getItem('family_supa_key') || '';
-    return {
-      url,
-      anonKey,
-      isConnected: Boolean(url && anonKey)
-    };
-  });
+  // Refs to skip writing straight back to Firestore when a state update
+  // originated FROM a Firestore snapshot (avoids redundant round-trips).
+  const skipCloudWrite = useRef({ members: false, tasks: false, taskLogs: false });
 
   // Local storage persistence sync
   useEffect(() => {
@@ -203,6 +207,80 @@ export default function App() {
   useEffect(() => {
     localStorage.setItem('family_active_member', currentMemberId);
   }, [currentMemberId]);
+
+  // Firestore real-time sync: pulls live updates from the cloud so every
+  // family device stays in sync, and seeds the cloud on first run.
+  useEffect(() => {
+    const unsubMembers = subscribeToMembers(
+      (cloudMembers) => {
+        skipCloudWrite.current.members = true;
+        setMembers(cloudMembers);
+        setCloudStatus('connected');
+      },
+      () => setCloudStatus('error'),
+      () => {
+        saveMembersToCloud(members).catch(() => setCloudStatus('error'));
+        setCloudStatus('connected');
+      }
+    );
+
+    const unsubTasks = subscribeToTasks(
+      (cloudTasks) => {
+        skipCloudWrite.current.tasks = true;
+        setTasks(cloudTasks);
+        setCloudStatus('connected');
+      },
+      () => setCloudStatus('error'),
+      () => {
+        saveTasksToCloud(tasks).catch(() => setCloudStatus('error'));
+      }
+    );
+
+    const unsubLogs = subscribeToTaskLogs(
+      (cloudLogs) => {
+        skipCloudWrite.current.taskLogs = true;
+        setTaskLogs(cloudLogs);
+        setCloudStatus('connected');
+      },
+      () => setCloudStatus('error'),
+      () => {
+        saveTaskLogsToCloud(taskLogs).catch(() => setCloudStatus('error'));
+      }
+    );
+
+    return () => {
+      unsubMembers();
+      unsubTasks();
+      unsubLogs();
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Push local changes up to Firestore (skipped when the change just came
+  // FROM Firestore, to avoid an unnecessary write-back loop).
+  useEffect(() => {
+    if (skipCloudWrite.current.members) {
+      skipCloudWrite.current.members = false;
+      return;
+    }
+    saveMembersToCloud(members).catch(() => setCloudStatus('error'));
+  }, [members]);
+
+  useEffect(() => {
+    if (skipCloudWrite.current.tasks) {
+      skipCloudWrite.current.tasks = false;
+      return;
+    }
+    saveTasksToCloud(tasks).catch(() => setCloudStatus('error'));
+  }, [tasks]);
+
+  useEffect(() => {
+    if (skipCloudWrite.current.taskLogs) {
+      skipCloudWrite.current.taskLogs = false;
+      return;
+    }
+    saveTaskLogsToCloud(taskLogs).catch(() => setCloudStatus('error'));
+  }, [taskLogs]);
 
   const currentMember = members.find((m) => m.id === currentMemberId) || members[0];
 
@@ -324,24 +402,47 @@ export default function App() {
     });
   };
 
-  const handleSaveSupabaseConfig = (url: string, anonKey: string) => {
-    localStorage.setItem('family_supa_url', url);
-    localStorage.setItem('family_supa_key', anonKey);
-    setSupabaseConfig({
-      url,
-      anonKey,
-      isConnected: Boolean(url && anonKey)
-    });
+  const handleOpenMemberModal = (memberId?: string) => {
+    const member = memberId ? members.find((m) => m.id === memberId) || null : null;
+    setEditingMember(member);
+    setIsMemberModalOpen(true);
   };
 
-  const handleResetToDemo = () => {
-    localStorage.removeItem('family_supa_url');
-    localStorage.removeItem('family_supa_key');
-    setSupabaseConfig({
-      url: '',
-      anonKey: '',
-      isConnected: false
-    });
+  const handleSaveMember = (memberData: Partial<FamilyMember>) => {
+    if (memberData.id) {
+      // Update existing member
+      setMembers((prev) =>
+        prev.map((m) => (m.id === memberData.id ? ({ ...m, ...memberData } as FamilyMember) : m))
+      );
+    } else {
+      // Create new member
+      const newMember: FamilyMember = {
+        id: 'member-' + Date.now(),
+        full_name: memberData.full_name || 'New Member',
+        role: memberData.role || 'child',
+        email: memberData.email || '',
+        color: memberData.color || 'bg-indigo-600',
+        points: 0,
+        streak: 0
+      };
+      setMembers((prev) => [...prev, newMember]);
+    }
+  };
+
+  const handleDeleteMember = (memberId: string) => {
+    if (members.length <= 1) {
+      alert('At least one family member is required.');
+      return;
+    }
+    if (!confirm('Delete this family member? Their task history will be kept in logs, but they will be removed from the roster.')) {
+      return;
+    }
+    setMembers((prev) => prev.filter((m) => m.id !== memberId));
+    // Reassign current viewer if the deleted member was active
+    if (currentMemberId === memberId) {
+      const fallback = members.find((m) => m.id !== memberId);
+      if (fallback) setCurrentMemberId(fallback.id);
+    }
   };
 
   const handleOpenExport = (tab: 'html' | 'sql' | 'guide' = 'html') => {
@@ -380,9 +481,8 @@ export default function App() {
         onSelectMember={setCurrentMemberId}
         onOpenTaskModal={() => setIsTaskModalOpen(true)}
         onOpenVoiceModal={() => setIsVoiceModalOpen(true)}
-        onOpenSupabaseModal={() => setIsSupabaseModalOpen(true)}
         onOpenExportModal={handleOpenExport}
-        supabaseConfig={supabaseConfig}
+        cloudStatus={cloudStatus}
       />
 
       {/* Main Bento Grid App Container */}
@@ -524,6 +624,8 @@ export default function App() {
                   setCurrentMemberId(id);
                   setActiveTab('today');
                 }}
+                onOpenMemberModal={handleOpenMemberModal}
+                onDeleteMember={handleDeleteMember}
               />
             )}
 
@@ -610,28 +712,18 @@ export default function App() {
                   Setup Instructions (Urdu)
                 </h2>
                 <span className="text-[10px] font-bold text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded-full">
-                  Supabase & Voice
+                  Firebase & Voice
                 </span>
               </div>
 
               <div className="text-xs space-y-4 leading-relaxed text-slate-600">
                 <div>
-                  <p className="font-bold text-indigo-700 mb-1">1. Supabase Setup (Urdu)</p>
+                  <p className="font-bold text-indigo-700 mb-1">1. Firebase Cloud Sync</p>
                   <p className="text-[11px]">
-                    Supabase dashboard par naya project banayein aur SQL editor mein niche wala code paste karein table banane ke liye.
+                    Yeh app Firestore (Firebase) se live connected hai — members, tasks aur logs khud-ba-khud
+                    cloud mein save hote hain, aur har device par real-time sync hota hai. Koi extra setup
+                    ki zaroorat nahi.
                   </p>
-                </div>
-
-                <div className="bg-slate-900 text-indigo-200 p-3 rounded-xl font-mono text-[10px] select-all leading-relaxed overflow-x-auto">
-                  <code>
-                    CREATE TABLE tasks ({"\n"}
-                    &nbsp;&nbsp;id uuid DEFAULT uuid_generate_v4() PRIMARY KEY,{"\n"}
-                    &nbsp;&nbsp;user_id uuid REFERENCES auth.users,{"\n"}
-                    &nbsp;&nbsp;title TEXT NOT NULL,{"\n"}
-                    &nbsp;&nbsp;category TEXT DEFAULT 'general',{"\n"}
-                    &nbsp;&nbsp;completed BOOLEAN DEFAULT false{"\n"}
-                    );
-                  </code>
                 </div>
 
                 <div>
@@ -644,7 +736,7 @@ export default function App() {
                 <div>
                   <p className="font-bold text-indigo-700 mb-1">3. Admin & Role Control</p>
                   <p className="text-[11px]">
-                    Admin dashboard view sirf 'Parent' role wale users ke liye hai. Row Level Security (RLS) policies lazmi active karein.
+                    Admin dashboard view sirf 'Parent' role wale users ke liye hai. Family members "Add Member" button se manage karein.
                   </p>
                 </div>
 
@@ -655,14 +747,6 @@ export default function App() {
                   >
                     <Download className="w-3.5 h-3.5 text-indigo-600" />
                     <span>Download Single-File Code (.html)</span>
-                  </button>
-
-                  <button
-                    onClick={() => handleOpenExport('sql')}
-                    className="w-full py-2 bg-indigo-50 hover:bg-indigo-100 rounded-xl font-bold text-indigo-700 border border-indigo-200 transition text-xs flex items-center justify-center gap-1.5"
-                  >
-                    <FileCode className="w-3.5 h-3.5" />
-                    <span>View Full Supabase SQL</span>
                   </button>
                 </div>
               </div>
@@ -680,7 +764,7 @@ export default function App() {
           <div className="flex items-center space-x-2">
             <CheckCircle2 className="w-4 h-4 text-indigo-600" />
             <span className="font-bold text-slate-800">Family HQ Task Manager</span>
-            <span>• Bento Grid Theme, Supabase DB & Web Speech API</span>
+            <span>• Bento Grid Theme, Firebase Cloud Sync & Web Speech API</span>
           </div>
 
           <div className="flex items-center space-x-4">
@@ -690,14 +774,6 @@ export default function App() {
             >
               <Download className="w-3.5 h-3.5" />
               <span>Download HTML</span>
-            </button>
-
-            <button
-              onClick={() => handleOpenExport('sql')}
-              className="font-bold text-indigo-600 hover:underline flex items-center space-x-1"
-            >
-              <FileCode className="w-3.5 h-3.5" />
-              <span>Supabase SQL</span>
             </button>
 
             <button
@@ -732,12 +808,11 @@ export default function App() {
         initialTab={exportModalTab}
       />
 
-      <SupabaseConfigModal
-        isOpen={isSupabaseModalOpen}
-        onClose={() => setIsSupabaseModalOpen(false)}
-        config={supabaseConfig}
-        onSaveConfig={handleSaveSupabaseConfig}
-        onResetToDemo={handleResetToDemo}
+      <MemberFormModal
+        isOpen={isMemberModalOpen}
+        onClose={() => setIsMemberModalOpen(false)}
+        onSave={handleSaveMember}
+        editingMember={editingMember}
       />
 
     </div>

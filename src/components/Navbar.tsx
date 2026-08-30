@@ -10,7 +10,7 @@ import {
   Sparkles,
   LayoutGrid
 } from 'lucide-react';
-import { FamilyMember, SupabaseConfig } from '../types';
+import { FamilyMember } from '../types';
 
 interface NavbarProps {
   currentMember: FamilyMember;
@@ -18,9 +18,8 @@ interface NavbarProps {
   onSelectMember: (memberId: string) => void;
   onOpenTaskModal: () => void;
   onOpenVoiceModal: () => void;
-  onOpenSupabaseModal: () => void;
   onOpenExportModal: (initialTab?: 'html' | 'sql' | 'guide') => void;
-  supabaseConfig: SupabaseConfig;
+  cloudStatus: 'connecting' | 'connected' | 'error';
 }
 
 export const Navbar: React.FC<NavbarProps> = ({
@@ -29,9 +28,8 @@ export const Navbar: React.FC<NavbarProps> = ({
   onSelectMember,
   onOpenTaskModal,
   onOpenVoiceModal,
-  onOpenSupabaseModal,
   onOpenExportModal,
-  supabaseConfig
+  cloudStatus
 }) => {
   const getInitials = (name: string) => {
     return name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
@@ -59,24 +57,34 @@ export const Navbar: React.FC<NavbarProps> = ({
                   Bento Grid
                 </span>
               </div>
-              <p className="text-xs text-slate-500 font-medium hidden sm:block">Supabase Database & Voice AI Powered</p>
+              <p className="text-xs text-slate-500 font-medium hidden sm:block">Firebase Cloud Sync & Voice AI Powered</p>
             </div>
           </div>
 
           {/* Action Tools & Role Switcher */}
           <div className="flex items-center space-x-2 sm:space-x-3">
             
-            {/* Supabase Status Button */}
-            <button
-              onClick={onOpenSupabaseModal}
-              id="btn-nav-supabase"
-              className="hidden lg:flex items-center space-x-1.5 text-xs px-2.5 py-1.5 rounded-xl border border-slate-200 hover:bg-slate-50 text-slate-700 font-medium transition"
-              title="Configure Supabase Database"
+            {/* Firebase Cloud Status */}
+            <div
+              className="hidden lg:flex items-center space-x-1.5 text-xs px-2.5 py-1.5 rounded-xl border border-slate-200 text-slate-700 font-medium"
+              title="Firebase Cloud Sync Status"
             >
               <Database className="w-3.5 h-3.5 text-indigo-600" />
-              <span>{supabaseConfig.isConnected ? 'Supabase Connected' : 'Demo DB Mode'}</span>
-              <span className={`w-2 h-2 rounded-full ${supabaseConfig.isConnected ? 'bg-emerald-500' : 'bg-amber-500'}`} />
-            </button>
+              <span>
+                {cloudStatus === 'connected' && 'Cloud Synced'}
+                {cloudStatus === 'connecting' && 'Connecting...'}
+                {cloudStatus === 'error' && 'Offline (Local Only)'}
+              </span>
+              <span
+                className={`w-2 h-2 rounded-full ${
+                  cloudStatus === 'connected'
+                    ? 'bg-emerald-500'
+                    : cloudStatus === 'connecting'
+                    ? 'bg-amber-500 animate-pulse'
+                    : 'bg-rose-500'
+                }`}
+              />
+            </div>
 
             {/* Quick Export & Downloads Menu */}
             <div className="flex items-center bg-slate-100 p-1 rounded-xl border border-slate-200 text-xs">

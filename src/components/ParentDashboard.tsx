@@ -28,6 +28,8 @@ interface ParentDashboardProps {
   onDeleteTask: (taskId: string) => void;
   onAwardBonus: (memberId: string, bonusPoints: number) => void;
   onSelectMember: (memberId: string) => void;
+  onOpenMemberModal: (memberId?: string) => void;
+  onDeleteMember: (memberId: string) => void;
 }
 
 export const ParentDashboard: React.FC<ParentDashboardProps> = ({
@@ -39,7 +41,9 @@ export const ParentDashboard: React.FC<ParentDashboardProps> = ({
   onToggleTaskStatus,
   onDeleteTask,
   onAwardBonus,
-  onSelectMember
+  onSelectMember,
+  onOpenMemberModal,
+  onDeleteMember
 }) => {
   const [selectedMemberFilter, setSelectedMemberFilter] = useState<string>('all');
 
@@ -172,6 +176,13 @@ export const ParentDashboard: React.FC<ParentDashboardProps> = ({
 
         <div className="flex items-center space-x-2">
           <button
+            onClick={() => onOpenMemberModal()}
+            className="flex items-center space-x-1.5 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-200 px-3 py-1.5 rounded-xl text-xs font-bold transition"
+          >
+            <UserCheck className="w-3.5 h-3.5 text-emerald-600" />
+            <span>Add Member</span>
+          </button>
+          <button
             onClick={onOpenVoiceModal}
             className="flex items-center space-x-1.5 bg-indigo-50 text-indigo-700 hover:bg-indigo-100 border border-indigo-200 px-3 py-1.5 rounded-xl text-xs font-bold transition"
           >
@@ -220,11 +231,29 @@ export const ParentDashboard: React.FC<ParentDashboardProps> = ({
                   </div>
                 </div>
 
-                <div className="text-right">
-                  <span className="text-xs font-bold text-indigo-600 bg-indigo-50 px-2 py-1 rounded-lg">
-                    ⭐ {member.points} pts
-                  </span>
-                  <p className="text-[11px] text-slate-400 font-medium mt-0.5">🔥 {member.streak}d streak</p>
+                <div className="flex items-start space-x-2">
+                  <div className="text-right">
+                    <span className="text-xs font-bold text-indigo-600 bg-indigo-50 px-2 py-1 rounded-lg">
+                      ⭐ {member.points} pts
+                    </span>
+                    <p className="text-[11px] text-slate-400 font-medium mt-0.5">🔥 {member.streak}d streak</p>
+                  </div>
+                  <div className="flex flex-col space-y-1">
+                    <button
+                      onClick={() => onOpenMemberModal(member.id)}
+                      className="text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 p-1 rounded-lg transition"
+                      title="Edit member"
+                    >
+                      <Edit3 className="w-3.5 h-3.5" />
+                    </button>
+                    <button
+                      onClick={() => onDeleteMember(member.id)}
+                      className="text-slate-400 hover:text-rose-600 hover:bg-rose-50 p-1 rounded-lg transition"
+                      title="Remove member"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
                 </div>
               </div>
 
