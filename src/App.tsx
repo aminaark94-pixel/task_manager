@@ -29,6 +29,7 @@ import { TaskModal } from './components/TaskModal';
 import { VoiceAssistantModal } from './components/VoiceAssistantModal';
 import { ExportDownloadModal } from './components/ExportDownloadModal';
 import { MemberFormModal } from './components/MemberFormModal';
+import { ParentLoginModal } from './components/ParentLoginModal';
 import {
   subscribeToMembers,
   subscribeToTasks,
@@ -186,6 +187,12 @@ export default function App() {
   const [isMemberModalOpen, setIsMemberModalOpen] = useState(false);
   const [editingMember, setEditingMember] = useState<FamilyMember | null>(null);
   const [cloudStatus, setCloudStatus] = useState<'connecting' | 'connected' | 'error'>('connecting');
+  
+  // Parent login state
+  const [isParentLoginModalOpen, setIsParentLoginModalOpen] = useState(false);
+  const [isParentLoggedIn, setIsParentLoggedIn] = useState(() => {
+    return localStorage.getItem('parent_logged_in') === 'true';
+  });
 
   // Refs to skip writing straight back to Firestore when a state update
   // originated FROM a Firestore snapshot (avoids redundant round-trips).
@@ -450,6 +457,16 @@ export default function App() {
     setIsExportModalOpen(true);
   };
 
+  const handleParentLoginSuccess = () => {
+    setIsParentLoggedIn(true);
+    localStorage.setItem('parent_logged_in', 'true');
+  };
+
+  const handleParentLogout = () => {
+    setIsParentLoggedIn(false);
+    localStorage.removeItem('parent_logged_in');
+  };
+
   const [quickInputTitle, setQuickInputTitle] = useState('');
 
   const handleQuickAddTask = (e?: React.FormEvent) => {
@@ -483,6 +500,9 @@ export default function App() {
         onOpenVoiceModal={() => setIsVoiceModalOpen(true)}
         onOpenExportModal={handleOpenExport}
         cloudStatus={cloudStatus}
+        isParentLoggedIn={isParentLoggedIn}
+        onOpenParentLogin={() => setIsParentLoginModalOpen(true)}
+        onLogoutParent={handleParentLogout}
       />
 
       {/* Main Bento Grid App Container */}
@@ -626,6 +646,7 @@ export default function App() {
                 }}
                 onOpenMemberModal={handleOpenMemberModal}
                 onDeleteMember={handleDeleteMember}
+                isParentLoggedIn={isParentLoggedIn}
               />
             )}
 
@@ -813,6 +834,12 @@ export default function App() {
         onClose={() => setIsMemberModalOpen(false)}
         onSave={handleSaveMember}
         editingMember={editingMember}
+      />
+
+      <ParentLoginModal
+        isOpen={isParentLoginModalOpen}
+        onClose={() => setIsParentLoginModalOpen(false)}
+        onLoginSuccess={handleParentLoginSuccess}
       />
 
     </div>

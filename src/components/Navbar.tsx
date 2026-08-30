@@ -8,7 +8,9 @@ import {
   BookOpen, 
   PlusCircle, 
   Sparkles,
-  LayoutGrid
+  LayoutGrid,
+  Lock,
+  LogOut
 } from 'lucide-react';
 import { FamilyMember } from '../types';
 
@@ -20,6 +22,9 @@ interface NavbarProps {
   onOpenVoiceModal: () => void;
   onOpenExportModal: (initialTab?: 'html' | 'sql' | 'guide') => void;
   cloudStatus: 'connecting' | 'connected' | 'error';
+  isParentLoggedIn?: boolean;
+  onOpenParentLogin?: () => void;
+  onLogoutParent?: () => void;
 }
 
 export const Navbar: React.FC<NavbarProps> = ({
@@ -29,7 +34,10 @@ export const Navbar: React.FC<NavbarProps> = ({
   onOpenTaskModal,
   onOpenVoiceModal,
   onOpenExportModal,
-  cloudStatus
+  cloudStatus,
+  isParentLoggedIn = false,
+  onOpenParentLogin,
+  onLogoutParent
 }) => {
   const getInitials = (name: string) => {
     return name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
@@ -138,6 +146,27 @@ export const Navbar: React.FC<NavbarProps> = ({
               <PlusCircle className="w-4 h-4" />
               <span className="hidden md:inline">Add Task</span>
             </button>
+
+            {/* Parent Login/Logout Button */}
+            {isParentLoggedIn ? (
+              <button
+                onClick={onLogoutParent}
+                id="btn-nav-logout-parent"
+                className="flex items-center space-x-1 bg-red-50 text-red-700 hover:bg-red-100 border border-red-200 px-3 py-1.5 rounded-xl text-xs font-bold transition"
+              >
+                <LogOut className="w-3.5 h-3.5" />
+                <span className="hidden sm:inline">Logout</span>
+              </button>
+            ) : (
+              <button
+                onClick={onOpenParentLogin}
+                id="btn-nav-login-parent"
+                className="flex items-center space-x-1 bg-amber-50 text-amber-700 hover:bg-amber-100 border border-amber-200 px-3 py-1.5 rounded-xl text-xs font-bold transition"
+              >
+                <Lock className="w-3.5 h-3.5" />
+                <span className="hidden sm:inline">Admin</span>
+              </button>
+            )}
 
             {/* Member Profile Badge & Selector */}
             <div className="flex items-center pl-2 border-l border-slate-200 space-x-2">

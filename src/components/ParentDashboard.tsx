@@ -30,6 +30,7 @@ interface ParentDashboardProps {
   onSelectMember: (memberId: string) => void;
   onOpenMemberModal: (memberId?: string) => void;
   onDeleteMember: (memberId: string) => void;
+  isParentLoggedIn?: boolean;
 }
 
 export const ParentDashboard: React.FC<ParentDashboardProps> = ({
@@ -43,7 +44,8 @@ export const ParentDashboard: React.FC<ParentDashboardProps> = ({
   onAwardBonus,
   onSelectMember,
   onOpenMemberModal,
-  onDeleteMember
+  onDeleteMember,
+  isParentLoggedIn = false
 }) => {
   const [selectedMemberFilter, setSelectedMemberFilter] = useState<string>('all');
 
@@ -175,13 +177,19 @@ export const ParentDashboard: React.FC<ParentDashboardProps> = ({
         </div>
 
         <div className="flex items-center space-x-2">
-          <button
-            onClick={() => onOpenMemberModal()}
-            className="flex items-center space-x-1.5 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-200 px-3 py-1.5 rounded-xl text-xs font-bold transition"
-          >
-            <UserCheck className="w-3.5 h-3.5 text-emerald-600" />
-            <span>Add Member</span>
-          </button>
+          {isParentLoggedIn ? (
+            <button
+              onClick={() => onOpenMemberModal()}
+              className="flex items-center space-x-1.5 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-200 px-3 py-1.5 rounded-xl text-xs font-bold transition"
+            >
+              <UserCheck className="w-3.5 h-3.5 text-emerald-600" />
+              <span>Add Member</span>
+            </button>
+          ) : (
+            <div className="text-xs text-slate-500 px-3 py-1.5 bg-slate-100 rounded-xl border border-slate-200">
+              🔒 Login required to manage members
+            </div>
+          )}
           <button
             onClick={onOpenVoiceModal}
             className="flex items-center space-x-1.5 bg-indigo-50 text-indigo-700 hover:bg-indigo-100 border border-indigo-200 px-3 py-1.5 rounded-xl text-xs font-bold transition"
