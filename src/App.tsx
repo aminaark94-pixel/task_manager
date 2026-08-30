@@ -4,22 +4,7 @@
  */
 
 import React, { useState, useEffect, useRef } from 'react';
-import { 
-  Sparkles, 
-  CalendarCheck, 
-  LayoutDashboard, 
-  History, 
-  Mic, 
-  PlusCircle, 
-  Download, 
-  FileCode, 
-  BookOpen, 
-  Database,
-  Award,
-  Flame,
-  Star,
-  CheckCircle2
-} from 'lucide-react';
+import { Sparkles, CalendarCheck, LayoutDashboard, History, Mic, CirclePlus as PlusCircle, Download, FileCode, BookOpen, Database, Award, Flame, Star, CircleCheck as CheckCircle2 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { Navbar } from './components/Navbar';
 import { MemberDashboard } from './components/MemberDashboard';
@@ -204,6 +189,8 @@ export default function App() {
   // originated FROM a Firestore snapshot (avoids redundant round-trips).
   const skipCloudWrite = useRef({ members: false, tasks: false, taskLogs: false });
 
+  const currentMember = members.find((m) => m.id === currentMemberId) || members[0];
+
   // Local storage persistence sync
   useEffect(() => {
     localStorage.setItem('family_members_data', JSON.stringify(members));
@@ -323,8 +310,6 @@ export default function App() {
     }
     saveTaskLogsToCloud(taskLogs).catch(() => setCloudStatus('error'));
   }, [taskLogs]);
-
-  const currentMember = members.find((m) => m.id === currentMemberId) || members[0];
 
   // Handlers
   const handleToggleTaskStatus = (taskId: string, memberId?: string) => {
