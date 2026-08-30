@@ -68,14 +68,34 @@ export function subscribeToTaskLogs(
   );
 }
 
+// Firestore rejects any field explicitly set to `undefined` — arrays of
+// Task/FamilyMember/TaskLog objects commonly have optional fields (due_date,
+// description, notes, etc.) left undefined, which would otherwise throw
+// "Unsupported field value: undefined" and silently fail every cloud save.
+function stripUndefinedDeep(value: any): any {
+  if (Array.isArray(value)) {
+    return value.map(stripUndefinedDeep);
+  }
+  if (value && typeof value === 'object') {
+    const clean: Record<string, any> = {};
+    Object.keys(value).forEach((key) => {
+      if (value[key] !== undefined) {
+        clean[key] = stripUndefinedDeep(value[key]);
+      }
+    });
+    return clean;
+  }
+  return value;
+}
+
 export async function saveMembersToCloud(members: FamilyMember[]): Promise<void> {
-  await setDoc(MEMBERS_DOC, { list: members, updated_at: new Date().toISOString() });
+  await setDoc(MEMBERS_DOC, { list: stripUndefinedDeep(members), updated_at: new Date().toISOString() });
 }
 
 export async function saveTasksToCloud(tasks: Task[]): Promise<void> {
-  await setDoc(TASKS_DOC, { list: tasks, updated_at: new Date().toISOString() });
+  await setDoc(TASKS_DOC, { list: stripUndefinedDeep(tasks), updated_at: new Date().toISOString() });
 }
 
 export async function saveTaskLogsToCloud(logs: TaskLog[]): Promise<void> {
-  await setDoc(LOGS_DOC, { list: logs, updated_at: new Date().toISOString() });
+  await setDoc(LOGS_DOC, { list: stripUndefinedDeep(logs), updated_at: new Date().toISOString() });
 }
