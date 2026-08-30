@@ -38,6 +38,12 @@ import {
   saveTasksToCloud,
   saveTaskLogsToCloud
 } from './lib/firestoreSync';
+import {
+  initializeFCM,
+  listenForMessages,
+  notifyTaskCompletion,
+  subscribeToMemberNotifications
+} from './lib/notificationService';
 import { FamilyMember, Task, TaskLog, isTaskAssignedTo, getTaskAssigneeIds } from './types';
 
 // Default Family Roster
@@ -263,6 +269,35 @@ export default function App() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Initialize Firebase Cloud Messaging (FCM) for notifications
+  useEffect(() => {
+    const setupNotifications = async () => {
+      try {
+        // Register service worker for background notifications
+        if ('serviceWorker' in navigator) {
+          try {
+            const registration = await navigator.serviceWorker.register('/firebase-messaging-sw.js');
+            console.log('✅ Service Worker registered:', registration);
+          } catch (error) {
+            console.log('⚠️ Service Worker registration failed:', error);
+          }
+        }
+        
+        await initializeFCM();
+        listenForMessages();
+        
+        // Subscribe current member to their notifications
+        if (currentMember) {
+          await subscribeToMemberNotifications(currentMember.id, currentMember.full_name);
+        }
+      } catch (error) {
+        console.log('⚠️ Notification setup skipped:', error);
+      }
+    };
+    
+    setupNotifications();
+  }, [currentMember]);
+
   // Push local changes up to Firestore (skipped when the change just came
   // FROM Firestore, to avoid an unnecessary write-back loop).
   useEffect(() => {
@@ -336,6 +371,20 @@ export default function App() {
             : m
         )
       );
+
+      // Send notification to the member who completed the task
+      notifyTaskCompletion(
+        targetUser.full_name,
+        targetTask.title,
+        targetTask.points_reward
+      );
+
+      // Trigger celebration confetti
+      confetti({
+        particleCount: 50,
+        spread: 70,
+        origin: { y: 0.5 }
+      });
     }
   };
 
@@ -365,6 +414,26 @@ export default function App() {
       };
 
       setTasks([newTask, ...tasks]);
+
+      // Send notifications to assigned members
+      const assigneeIds = typeof newTask.assigned_to === 'string'
+        ? [newTask.assigned_to]
+        : newTask.assigned_to;
+
+      assigneeIds.forEach((memberId) => {
+        const assignee = members.find((m) => m.id === memberId);
+        if (assignee && assignee.id !== currentMember.id) {
+          // Import and use notifyTaskAssignment when available
+          // For now, we'll use the basic notification
+          const title = '📋 New Task Assigned!';
+          const body = `${currentMember.full_name} ne tum ko "${newTask.title}" assign kiya`;
+          
+          // Create a simple notification
+          if ('Notification' in window && Notification.permission === 'granted') {
+            new Notification(title, { body });
+          }
+        }
+      });
 
       // Trigger celebratory mini confetti for adding task
       confetti({
