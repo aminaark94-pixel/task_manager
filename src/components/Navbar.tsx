@@ -3,9 +3,6 @@ import {
   CheckCheck, 
   Database, 
   Mic, 
-  Download, 
-  FileCode, 
-  BookOpen, 
   PlusCircle, 
   Sparkles,
   LayoutGrid,
@@ -20,7 +17,6 @@ interface NavbarProps {
   onSelectMember: (memberId: string) => void;
   onOpenTaskModal: () => void;
   onOpenVoiceModal: () => void;
-  onOpenExportModal: (initialTab?: 'html' | 'sql' | 'guide') => void;
   cloudStatus: 'connecting' | 'connected' | 'error';
   isParentLoggedIn?: boolean;
   onOpenParentLogin?: () => void;
@@ -33,7 +29,6 @@ export const Navbar: React.FC<NavbarProps> = ({
   onSelectMember,
   onOpenTaskModal,
   onOpenVoiceModal,
-  onOpenExportModal,
   cloudStatus,
   isParentLoggedIn = false,
   onOpenParentLogin,
@@ -92,39 +87,6 @@ export const Navbar: React.FC<NavbarProps> = ({
                     : 'bg-rose-500'
                 }`}
               />
-            </div>
-
-            {/* Quick Export & Downloads Menu */}
-            <div className="flex items-center bg-slate-100 p-1 rounded-xl border border-slate-200 text-xs">
-              <button
-                onClick={() => onOpenExportModal('html')}
-                id="btn-nav-download-html"
-                className="flex items-center space-x-1 px-2.5 py-1 rounded-lg font-bold text-slate-700 hover:bg-white hover:shadow-xs transition"
-                title="Download Single-File HTML"
-              >
-                <Download className="w-3.5 h-3.5 text-indigo-600" />
-                <span className="hidden sm:inline">Download HTML</span>
-              </button>
-
-              <button
-                onClick={() => onOpenExportModal('sql')}
-                id="btn-nav-view-sql"
-                className="hidden md:flex items-center space-x-1 px-2 py-1 rounded-lg font-medium text-slate-600 hover:bg-white transition"
-                title="Supabase SQL Schema"
-              >
-                <FileCode className="w-3.5 h-3.5 text-indigo-600" />
-                <span>SQL Schema</span>
-              </button>
-
-              <button
-                onClick={() => onOpenExportModal('guide')}
-                id="btn-nav-view-guide"
-                className="flex items-center space-x-1 px-2 py-1 rounded-lg font-medium text-slate-600 hover:bg-white transition"
-                title="Roman Urdu Setup Instructions"
-              >
-                <BookOpen className="w-3.5 h-3.5 text-amber-600" />
-                <span className="hidden sm:inline">Urdu Guide</span>
-              </button>
             </div>
 
             {/* Voice Command Button */}

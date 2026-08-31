@@ -4,7 +4,7 @@
  */
 
 import React, { useState, useEffect, useRef } from 'react';
-import { Sparkles, CalendarCheck, LayoutDashboard, History, Mic, CirclePlus as PlusCircle, Download, FileCode, BookOpen, Database, Award, Flame, Star, CircleCheck as CheckCircle2 } from 'lucide-react';
+import { Sparkles, CalendarCheck, LayoutDashboard, History, Mic, CirclePlus as PlusCircle, Database, Award, Flame, Star, CircleCheck as CheckCircle2 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { Navbar } from './components/Navbar';
 import { MemberDashboard } from './components/MemberDashboard';
@@ -552,7 +552,6 @@ export default function App() {
         onSelectMember={setCurrentMemberId}
         onOpenTaskModal={() => setIsTaskModalOpen(true)}
         onOpenVoiceModal={() => setIsVoiceModalOpen(true)}
-        onOpenExportModal={handleOpenExport}
         cloudStatus={cloudStatus}
         isParentLoggedIn={isParentLoggedIn}
         onOpenParentLogin={() => setIsParentLoginModalOpen(true)}
@@ -780,53 +779,6 @@ export default function App() {
               </div>
             </section>
 
-            {/* Bento Card: Setup Instructions & Quick SQL Guide */}
-            <section className="bg-white rounded-2xl shadow-xs border border-slate-200 p-5 flex flex-col space-y-4">
-              <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-                <h2 className="text-xs font-black text-slate-800 uppercase tracking-widest">
-                  Setup Instructions (Urdu)
-                </h2>
-                <span className="text-[10px] font-bold text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded-full">
-                  Firebase & Voice
-                </span>
-              </div>
-
-              <div className="text-xs space-y-4 leading-relaxed text-slate-600">
-                <div>
-                  <p className="font-bold text-indigo-700 mb-1">1. Firebase Cloud Sync</p>
-                  <p className="text-[11px]">
-                    Yeh app Firestore (Firebase) se live connected hai — members, tasks aur logs khud-ba-khud
-                    cloud mein save hote hain, aur har device par real-time sync hota hai. Koi extra setup
-                    ki zaroorat nahi.
-                  </p>
-                </div>
-
-                <div>
-                  <p className="font-bold text-indigo-700 mb-1">2. Voice-to-Text Setup</p>
-                  <p className="text-[11px]">
-                    Browser ke native <span className="font-bold text-slate-800">SpeechRecognition</span> API ko use karein. Microphone button par click karein aur seedha bolen.
-                  </p>
-                </div>
-
-                <div>
-                  <p className="font-bold text-indigo-700 mb-1">3. Admin & Role Control</p>
-                  <p className="text-[11px]">
-                    Admin dashboard view sirf 'Parent' role wale users ke liye hai. Family members "Add Member" button se manage karein.
-                  </p>
-                </div>
-
-                <div className="pt-2 flex flex-col gap-2">
-                  <button
-                    onClick={() => handleOpenExport('html')}
-                    className="w-full py-2.5 bg-slate-100 hover:bg-slate-200 rounded-xl font-bold text-slate-800 border border-slate-200 transition text-xs flex items-center justify-center gap-1.5"
-                  >
-                    <Download className="w-3.5 h-3.5 text-indigo-600" />
-                    <span>Download Single-File Code (.html)</span>
-                  </button>
-                </div>
-              </div>
-            </section>
-
           </div>
 
         </div>
@@ -840,24 +792,6 @@ export default function App() {
             <CheckCircle2 className="w-4 h-4 text-indigo-600" />
             <span className="font-bold text-slate-800">Family HQ Task Manager</span>
             <span>• Bento Grid Theme, Firebase Cloud Sync & Web Speech API</span>
-          </div>
-
-          <div className="flex items-center space-x-4">
-            <button
-              onClick={() => handleOpenExport('html')}
-              className="font-bold text-indigo-600 hover:underline flex items-center space-x-1"
-            >
-              <Download className="w-3.5 h-3.5" />
-              <span>Download HTML</span>
-            </button>
-
-            <button
-              onClick={() => handleOpenExport('guide')}
-              className="font-bold text-amber-700 hover:underline flex items-center space-x-1"
-            >
-              <BookOpen className="w-3.5 h-3.5" />
-              <span>Roman Urdu Guide</span>
-            </button>
           </div>
         </div>
       </footer>
