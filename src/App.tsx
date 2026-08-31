@@ -147,10 +147,14 @@ const INITIAL_LOGS: TaskLog[] = [
 ];
 
 export default function App() {
-  // State
+  // State — starts from the local cache if present, otherwise EMPTY (never
+  // the hardcoded demo data). Demo data is only ever introduced inside the
+  // Firestore "onMissing" callback below, confirming it's truly the very
+  // first run — this is what prevents demo data from ever silently
+  // overwriting real cloud data again.
   const [members, setMembers] = useState<FamilyMember[]>(() => {
     const saved = localStorage.getItem('family_members_data');
-    return saved ? JSON.parse(saved) : INITIAL_MEMBERS;
+    return saved ? JSON.parse(saved) : [];
   });
 
   const [currentMemberId, setCurrentMemberId] = useState<string>(() => {
@@ -160,12 +164,12 @@ export default function App() {
 
   const [tasks, setTasks] = useState<Task[]>(() => {
     const saved = localStorage.getItem('family_tasks_data');
-    return saved ? JSON.parse(saved) : INITIAL_TASKS;
+    return saved ? JSON.parse(saved) : [];
   });
 
   const [taskLogs, setTaskLogs] = useState<TaskLog[]>(() => {
     const saved = localStorage.getItem('family_task_logs');
-    return saved ? JSON.parse(saved) : INITIAL_LOGS;
+    return saved ? JSON.parse(saved) : [];
   });
 
   const [activeTab, setActiveTab] = useState<'today' | 'parent' | 'logs'>('today');
@@ -235,9 +239,13 @@ export default function App() {
       },
       () => setCloudStatus('error'),
       () => {
+        // Firestore confirms the doc genuinely doesn't exist — this really
+        // is the first run ever, so (and only so) seed with the demo set.
         hasSyncedFromCloud.current.members = true;
-        lastKnownCloudMemberCount.current = members.length;
-        saveMembersToCloud(members).catch(() => setCloudStatus('error'));
+        lastKnownCloudMemberCount.current = INITIAL_MEMBERS.length;
+        skipCloudWrite.current.members = true;
+        setMembers(INITIAL_MEMBERS);
+        saveMembersToCloud(INITIAL_MEMBERS).catch(() => setCloudStatus('error'));
         setCloudStatus('connected');
       }
     );
@@ -253,8 +261,10 @@ export default function App() {
       () => setCloudStatus('error'),
       () => {
         hasSyncedFromCloud.current.tasks = true;
-        lastKnownCloudTaskCount.current = tasks.length;
-        saveTasksToCloud(tasks).catch(() => setCloudStatus('error'));
+        lastKnownCloudTaskCount.current = INITIAL_TASKS.length;
+        skipCloudWrite.current.tasks = true;
+        setTasks(INITIAL_TASKS);
+        saveTasksToCloud(INITIAL_TASKS).catch(() => setCloudStatus('error'));
       }
     );
 
@@ -268,7 +278,9 @@ export default function App() {
       () => setCloudStatus('error'),
       () => {
         hasSyncedFromCloud.current.taskLogs = true;
-        saveTaskLogsToCloud(taskLogs).catch(() => setCloudStatus('error'));
+        skipCloudWrite.current.taskLogs = true;
+        setTaskLogs(INITIAL_LOGS);
+        saveTaskLogsToCloud(INITIAL_LOGS).catch(() => setCloudStatus('error'));
       }
     );
 
@@ -635,6 +647,26 @@ export default function App() {
 
     setQuickInputTitle('');
   };
+
+  // Show a lightweight loading screen until we've heard from Firestore at
+  // least once — this guarantees the demo data (or a stale local cache)
+  // is never what the user sees or works with before the real cloud state
+  // has loaded, closing the last gap that could cause data loss.
+  const isFullySynced =
+    hasSyncedFromCloud.current.members &&
+    hasSyncedFromCloud.current.tasks &&
+    hasSyncedFromCloud.current.taskLogs;
+
+  if (!isFullySynced && cloudStatus !== 'error') {
+    return (
+      <div className="min-h-screen bg-slate-50 flex items-center justify-center">
+        <div className="text-center space-y-3">
+          <div className="w-10 h-10 border-4 border-indigo-200 border-t-indigo-600 rounded-full animate-spin mx-auto" />
+          <p className="text-sm text-slate-500 font-semibold">Syncing with your family's data...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900 flex flex-col font-sans antialiased">
