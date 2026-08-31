@@ -189,6 +189,15 @@ export default function App() {
   // originated FROM a Firestore snapshot (avoids redundant round-trips).
   const skipCloudWrite = useRef({ members: false, tasks: false, taskLogs: false });
 
+  // Tracks whether we've heard from Firestore at least once for each data
+  // type (either real data, or confirmation the doc doesn't exist yet).
+  // The "push local changes to cloud" effects below MUST wait for this —
+  // otherwise, on a fresh device (empty localStorage → default demo data),
+  // the push effect fires on mount BEFORE the real cloud data has loaded,
+  // silently overwriting every other device's saved members/tasks with
+  // local defaults. This was the root cause of data "disappearing".
+  const hasSyncedFromCloud = useRef({ members: false, tasks: false, taskLogs: false });
+
   const currentMember = members.find((m) => m.id === currentMemberId) || members[0];
 
   // Local storage persistence sync
@@ -214,11 +223,13 @@ export default function App() {
     const unsubMembers = subscribeToMembers(
       (cloudMembers) => {
         skipCloudWrite.current.members = true;
+        hasSyncedFromCloud.current.members = true;
         setMembers(cloudMembers);
         setCloudStatus('connected');
       },
       () => setCloudStatus('error'),
       () => {
+        hasSyncedFromCloud.current.members = true;
         saveMembersToCloud(members).catch(() => setCloudStatus('error'));
         setCloudStatus('connected');
       }
@@ -227,11 +238,13 @@ export default function App() {
     const unsubTasks = subscribeToTasks(
       (cloudTasks) => {
         skipCloudWrite.current.tasks = true;
+        hasSyncedFromCloud.current.tasks = true;
         setTasks(cloudTasks);
         setCloudStatus('connected');
       },
       () => setCloudStatus('error'),
       () => {
+        hasSyncedFromCloud.current.tasks = true;
         saveTasksToCloud(tasks).catch(() => setCloudStatus('error'));
       }
     );
@@ -239,11 +252,13 @@ export default function App() {
     const unsubLogs = subscribeToTaskLogs(
       (cloudLogs) => {
         skipCloudWrite.current.taskLogs = true;
+        hasSyncedFromCloud.current.taskLogs = true;
         setTaskLogs(cloudLogs);
         setCloudStatus('connected');
       },
       () => setCloudStatus('error'),
       () => {
+        hasSyncedFromCloud.current.taskLogs = true;
         saveTaskLogsToCloud(taskLogs).catch(() => setCloudStatus('error'));
       }
     );
@@ -286,12 +301,15 @@ export default function App() {
   }, [currentMember]);
 
   // Push local changes up to Firestore (skipped when the change just came
-  // FROM Firestore, to avoid an unnecessary write-back loop).
+  // FROM Firestore, to avoid an unnecessary write-back loop — and skipped
+  // entirely until we've synced from the cloud at least once, so a fresh
+  // device never wipes other devices' data with local demo defaults).
   useEffect(() => {
     if (skipCloudWrite.current.members) {
       skipCloudWrite.current.members = false;
       return;
     }
+    if (!hasSyncedFromCloud.current.members) return;
     saveMembersToCloud(members).catch(() => setCloudStatus('error'));
   }, [members]);
 
@@ -300,6 +318,7 @@ export default function App() {
       skipCloudWrite.current.tasks = false;
       return;
     }
+    if (!hasSyncedFromCloud.current.tasks) return;
     saveTasksToCloud(tasks).catch(() => setCloudStatus('error'));
   }, [tasks]);
 
@@ -308,6 +327,7 @@ export default function App() {
       skipCloudWrite.current.taskLogs = false;
       return;
     }
+    if (!hasSyncedFromCloud.current.taskLogs) return;
     saveTaskLogsToCloud(taskLogs).catch(() => setCloudStatus('error'));
   }, [taskLogs]);
 
