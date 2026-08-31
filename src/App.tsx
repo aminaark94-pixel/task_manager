@@ -198,6 +198,11 @@ export default function App() {
   // local defaults. This was the root cause of data "disappearing".
   const hasSyncedFromCloud = useRef({ members: false, tasks: false, taskLogs: false });
 
+  // Tracks the last count we know the cloud legitimately had, so the guard
+  // above can tell "real deletion down to zero" apart from "empty by glitch".
+  const lastKnownCloudMemberCount = useRef(0);
+  const lastKnownCloudTaskCount = useRef(0);
+
   const currentMember = members.find((m) => m.id === currentMemberId) || members[0];
 
   // Local storage persistence sync
@@ -224,12 +229,14 @@ export default function App() {
       (cloudMembers) => {
         skipCloudWrite.current.members = true;
         hasSyncedFromCloud.current.members = true;
+        lastKnownCloudMemberCount.current = cloudMembers.length;
         setMembers(cloudMembers);
         setCloudStatus('connected');
       },
       () => setCloudStatus('error'),
       () => {
         hasSyncedFromCloud.current.members = true;
+        lastKnownCloudMemberCount.current = members.length;
         saveMembersToCloud(members).catch(() => setCloudStatus('error'));
         setCloudStatus('connected');
       }
@@ -239,12 +246,14 @@ export default function App() {
       (cloudTasks) => {
         skipCloudWrite.current.tasks = true;
         hasSyncedFromCloud.current.tasks = true;
+        lastKnownCloudTaskCount.current = cloudTasks.length;
         setTasks(cloudTasks);
         setCloudStatus('connected');
       },
       () => setCloudStatus('error'),
       () => {
         hasSyncedFromCloud.current.tasks = true;
+        lastKnownCloudTaskCount.current = tasks.length;
         saveTasksToCloud(tasks).catch(() => setCloudStatus('error'));
       }
     );
@@ -310,6 +319,14 @@ export default function App() {
       return;
     }
     if (!hasSyncedFromCloud.current.members) return;
+    // Extra safety net: never let an empty array silently wipe previously
+    // saved data (e.g. a transient render glitch) — only an explicit
+    // Restore or a real deletion down to zero members should do that.
+    if (members.length === 0 && lastKnownCloudMemberCount.current > 0) {
+      console.warn('Refused to push an empty members list over existing cloud data.');
+      return;
+    }
+    lastKnownCloudMemberCount.current = members.length;
     saveMembersToCloud(members).catch(() => setCloudStatus('error'));
   }, [members]);
 
@@ -319,6 +336,11 @@ export default function App() {
       return;
     }
     if (!hasSyncedFromCloud.current.tasks) return;
+    if (tasks.length === 0 && lastKnownCloudTaskCount.current > 0) {
+      console.warn('Refused to push an empty tasks list over existing cloud data.');
+      return;
+    }
+    lastKnownCloudTaskCount.current = tasks.length;
     saveTasksToCloud(tasks).catch(() => setCloudStatus('error'));
   }, [tasks]);
 
@@ -332,6 +354,58 @@ export default function App() {
   }, [taskLogs]);
 
   // Handlers
+
+  // Downloads a full JSON snapshot of members/tasks/logs — a one-click
+  // safety backup the user can restore from if data ever disappears.
+  const handleBackupNow = () => {
+    const snapshot = {
+      exportedAt: new Date().toISOString(),
+      members,
+      tasks,
+      taskLogs,
+    };
+    const blob = new Blob([JSON.stringify(snapshot, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `family-task-manager-backup-${new Date().toISOString().split('T')[0]}.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
+
+  // Restores members/tasks/logs from a previously downloaded backup file.
+  const handleRestoreFile = (file: File) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      try {
+        const parsed = JSON.parse(reader.result as string);
+        if (!Array.isArray(parsed.members) || !Array.isArray(parsed.tasks)) {
+          alert('This file doesn\'t look like a valid backup.');
+          return;
+        }
+        const confirmed = window.confirm(
+          `Restore ${parsed.members.length} members and ${parsed.tasks.length} tasks from this backup? This will replace what's currently loaded (and sync to the cloud for every device).`
+        );
+        if (!confirmed) return;
+
+        setMembers(parsed.members);
+        setTasks(parsed.tasks);
+        if (Array.isArray(parsed.taskLogs)) setTaskLogs(parsed.taskLogs);
+
+        // Make sure the restored data is treated as a real user change (not
+        // skipped as an echo) so it actually pushes back up to the cloud.
+        hasSyncedFromCloud.current.members = true;
+        hasSyncedFromCloud.current.tasks = true;
+        hasSyncedFromCloud.current.taskLogs = true;
+      } catch (e) {
+        alert('Could not read this file — make sure it\'s an unmodified backup JSON.');
+      }
+    };
+    reader.readAsText(file);
+  };
+
   const handleToggleTaskStatus = (taskId: string, memberId?: string) => {
     const targetTask = tasks.find((t) => t.id === taskId);
     if (!targetTask) return;
@@ -683,10 +757,40 @@ export default function App() {
                 </button>
               </div>
 
-              {/* Status Indicator Chip */}
-              <div className="hidden sm:flex items-center space-x-1.5 text-xs text-slate-500 font-semibold px-2">
-                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-                <span>Live Sync Active</span>
+              {/* Status Indicator Chip + Backup/Restore */}
+              <div className="flex items-center gap-2">
+                <div className="hidden sm:flex items-center space-x-1.5 text-xs text-slate-500 font-semibold px-2">
+                  <span className={`w-2 h-2 rounded-full animate-pulse ${cloudStatus === 'connected' ? 'bg-emerald-500' : cloudStatus === 'error' ? 'bg-rose-500' : 'bg-amber-500'}`} />
+                  <span>{cloudStatus === 'connected' ? 'Live Sync Active' : cloudStatus === 'error' ? 'Sync Error' : 'Connecting...'}</span>
+                </div>
+
+                <button
+                  onClick={handleBackupNow}
+                  title="Download a backup of all members, tasks & logs"
+                  className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-600 text-xs font-bold transition cursor-pointer"
+                >
+                  <Database className="w-3.5 h-3.5" />
+                  <span className="hidden md:inline">Backup</span>
+                </button>
+
+                <label
+                  title="Restore members, tasks & logs from a backup file"
+                  className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-600 text-xs font-bold transition cursor-pointer"
+                >
+                  <History className="w-3.5 h-3.5" />
+                  <span className="hidden md:inline">Restore</span>
+                  <input
+                    type="file"
+                    accept="application/json"
+                    className="hidden"
+                    onChange={(e) => {
+                      if (e.target.files && e.target.files[0]) {
+                        handleRestoreFile(e.target.files[0]);
+                      }
+                      e.target.value = '';
+                    }}
+                  />
+                </label>
               </div>
             </div>
 
