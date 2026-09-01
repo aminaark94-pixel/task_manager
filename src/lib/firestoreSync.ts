@@ -4,8 +4,9 @@
  */
 
 import { doc, setDoc, onSnapshot, Unsubscribe } from 'firebase/firestore';
-import { db } from './firebase';
-import { FamilyMember, Task, TaskLog } from '../types';
+import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
+import { db, storage } from './firebase';
+import { FamilyMember, Task, TaskLog, TaskUpdate } from '../types';
 
 // We use a single-family model: one document per data type inside the
 // "familyData" collection. This keeps reads/writes simple and free-tier
@@ -13,6 +14,7 @@ import { FamilyMember, Task, TaskLog } from '../types';
 const MEMBERS_DOC = doc(db, 'familyData', 'members');
 const TASKS_DOC = doc(db, 'familyData', 'tasks');
 const LOGS_DOC = doc(db, 'familyData', 'taskLogs');
+const TASK_UPDATES_DOC = doc(db, 'familyData', 'taskUpdates');
 
 export function subscribeToMembers(
   onData: (members: FamilyMember[]) => void,
@@ -68,6 +70,24 @@ export function subscribeToTaskLogs(
   );
 }
 
+export function subscribeToTaskUpdates(
+  onData: (updates: TaskUpdate[]) => void,
+  onError: (err: Error) => void,
+  onMissing?: () => void
+): Unsubscribe {
+  return onSnapshot(
+    TASK_UPDATES_DOC,
+    (snap) => {
+      if (snap.exists()) {
+        onData((snap.data().list as TaskUpdate[]) || []);
+      } else if (onMissing) {
+        onMissing();
+      }
+    },
+    onError
+  );
+}
+
 // Firestore rejects any field explicitly set to `undefined` — arrays of
 // Task/FamilyMember/TaskLog objects commonly have optional fields (due_date,
 // description, notes, etc.) left undefined, which would otherwise throw
@@ -98,4 +118,16 @@ export async function saveTasksToCloud(tasks: Task[]): Promise<void> {
 
 export async function saveTaskLogsToCloud(logs: TaskLog[]): Promise<void> {
   await setDoc(LOGS_DOC, { list: stripUndefinedDeep(logs), updated_at: new Date().toISOString() });
+}
+
+export async function saveTaskUpdatesToCloud(updates: TaskUpdate[]): Promise<void> {
+  await setDoc(TASK_UPDATES_DOC, { list: stripUndefinedDeep(updates), updated_at: new Date().toISOString() });
+}
+
+// Uploads a recorded voice note blob to Firebase Storage and returns its
+// public download URL, ready to be stored on a TaskUpdate record.
+export async function uploadTaskVoiceNote(taskId: string, updateId: string, blob: Blob): Promise<string> {
+  const storageRef = ref(storage, `taskVoiceNotes/${taskId}/${updateId}.webm`);
+  await uploadBytes(storageRef, blob, { contentType: blob.type || 'audio/webm' });
+  return getDownloadURL(storageRef);
 }

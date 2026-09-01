@@ -19,9 +19,12 @@ import {
   subscribeToMembers,
   subscribeToTasks,
   subscribeToTaskLogs,
+  subscribeToTaskUpdates,
   saveMembersToCloud,
   saveTasksToCloud,
-  saveTaskLogsToCloud
+  saveTaskLogsToCloud,
+  saveTaskUpdatesToCloud,
+  uploadTaskVoiceNote
 } from './lib/firestoreSync';
 import {
   initializeFCM,
@@ -29,7 +32,7 @@ import {
   notifyTaskCompletion,
   subscribeToMemberNotifications
 } from './lib/notificationService';
-import { FamilyMember, Task, TaskLog, isTaskAssignedTo, getTaskAssigneeIds } from './types';
+import { FamilyMember, Task, TaskLog, TaskUpdate, isTaskAssignedTo, getTaskAssigneeIds } from './types';
 
 // Default Family Roster
 const INITIAL_MEMBERS: FamilyMember[] = [
@@ -172,6 +175,11 @@ export default function App() {
     return saved ? JSON.parse(saved) : [];
   });
 
+  const [taskUpdates, setTaskUpdates] = useState<TaskUpdate[]>(() => {
+    const saved = localStorage.getItem('family_task_updates');
+    return saved ? JSON.parse(saved) : [];
+  });
+
   const [activeTab, setActiveTab] = useState<'today' | 'parent' | 'logs'>('today');
 
   // Modals state
@@ -192,7 +200,7 @@ export default function App() {
 
   // Refs to skip writing straight back to Firestore when a state update
   // originated FROM a Firestore snapshot (avoids redundant round-trips).
-  const skipCloudWrite = useRef({ members: false, tasks: false, taskLogs: false });
+  const skipCloudWrite = useRef({ members: false, tasks: false, taskLogs: false, taskUpdates: false });
 
   // Tracks whether we've heard from Firestore at least once for each data
   // type (either real data, or confirmation the doc doesn't exist yet).
@@ -201,7 +209,7 @@ export default function App() {
   // the push effect fires on mount BEFORE the real cloud data has loaded,
   // silently overwriting every other device's saved members/tasks with
   // local defaults. This was the root cause of data "disappearing".
-  const hasSyncedFromCloud = useRef({ members: false, tasks: false, taskLogs: false });
+  const hasSyncedFromCloud = useRef({ members: false, tasks: false, taskLogs: false, taskUpdates: false });
 
   // Tracks the last count we know the cloud legitimately had, so the guard
   // above can tell "real deletion down to zero" apart from "empty by glitch".
@@ -222,6 +230,10 @@ export default function App() {
   useEffect(() => {
     localStorage.setItem('family_task_logs', JSON.stringify(taskLogs));
   }, [taskLogs]);
+
+  useEffect(() => {
+    localStorage.setItem('family_task_updates', JSON.stringify(taskUpdates));
+  }, [taskUpdates]);
 
   useEffect(() => {
     localStorage.setItem('family_active_member', currentMemberId);
@@ -285,10 +297,27 @@ export default function App() {
       }
     );
 
+    const unsubTaskUpdates = subscribeToTaskUpdates(
+      (cloudUpdates) => {
+        skipCloudWrite.current.taskUpdates = true;
+        hasSyncedFromCloud.current.taskUpdates = true;
+        setTaskUpdates(cloudUpdates);
+        setCloudStatus('connected');
+      },
+      () => setCloudStatus('error'),
+      () => {
+        hasSyncedFromCloud.current.taskUpdates = true;
+        skipCloudWrite.current.taskUpdates = true;
+        setTaskUpdates([]);
+        saveTaskUpdatesToCloud([]).catch(() => setCloudStatus('error'));
+      }
+    );
+
     return () => {
       unsubMembers();
       unsubTasks();
       unsubLogs();
+      unsubTaskUpdates();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -366,6 +395,15 @@ export default function App() {
     saveTaskLogsToCloud(taskLogs).catch(() => setCloudStatus('error'));
   }, [taskLogs]);
 
+  useEffect(() => {
+    if (skipCloudWrite.current.taskUpdates) {
+      skipCloudWrite.current.taskUpdates = false;
+      return;
+    }
+    if (!hasSyncedFromCloud.current.taskUpdates) return;
+    saveTaskUpdatesToCloud(taskUpdates).catch(() => setCloudStatus('error'));
+  }, [taskUpdates]);
+
   // Handlers
 
   // Downloads a full JSON snapshot of members/tasks/logs — a one-click
@@ -376,6 +414,7 @@ export default function App() {
       members,
       tasks,
       taskLogs,
+      taskUpdates,
     };
     const blob = new Blob([JSON.stringify(snapshot, null, 2)], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
@@ -406,17 +445,65 @@ export default function App() {
         setMembers(parsed.members);
         setTasks(parsed.tasks);
         if (Array.isArray(parsed.taskLogs)) setTaskLogs(parsed.taskLogs);
+        if (Array.isArray(parsed.taskUpdates)) setTaskUpdates(parsed.taskUpdates);
 
         // Make sure the restored data is treated as a real user change (not
         // skipped as an echo) so it actually pushes back up to the cloud.
         hasSyncedFromCloud.current.members = true;
         hasSyncedFromCloud.current.tasks = true;
         hasSyncedFromCloud.current.taskLogs = true;
+        hasSyncedFromCloud.current.taskUpdates = true;
       } catch (e) {
         alert('Could not read this file — make sure it\'s an unmodified backup JSON.');
       }
     };
     reader.readAsText(file);
+  };
+
+  // Adds a text or voice reply/update on a task, from whichever member is
+  // currently viewing it. Voice notes are uploaded to Storage first, then
+  // the resulting URL is what actually gets saved on the update record.
+  const handleAddTaskUpdate = async (
+    taskId: string,
+    input: { type: 'text' | 'voice'; text?: string; audioBlob?: Blob; durationSeconds?: number }
+  ) => {
+    const updateId = 'update-' + Date.now();
+    const author = currentMember;
+
+    if (input.type === 'text') {
+      const newUpdate: TaskUpdate = {
+        id: updateId,
+        task_id: taskId,
+        user_id: author.id,
+        user_name: author.full_name,
+        type: 'text',
+        text: input.text,
+        created_at: new Date().toISOString()
+      };
+      hasSyncedFromCloud.current.taskUpdates = true;
+      setTaskUpdates((prev) => [...prev, newUpdate]);
+      return;
+    }
+
+    if (input.type === 'voice' && input.audioBlob) {
+      try {
+        const audioUrl = await uploadTaskVoiceNote(taskId, updateId, input.audioBlob);
+        const newUpdate: TaskUpdate = {
+          id: updateId,
+          task_id: taskId,
+          user_id: author.id,
+          user_name: author.full_name,
+          type: 'voice',
+          audio_url: audioUrl,
+          audio_duration_seconds: input.durationSeconds,
+          created_at: new Date().toISOString()
+        };
+        hasSyncedFromCloud.current.taskUpdates = true;
+        setTaskUpdates((prev) => [...prev, newUpdate]);
+      } catch (err) {
+        alert('Could not upload the voice note. Please check your connection and try again.');
+      }
+    }
   };
 
   const handleToggleTaskStatus = (taskId: string, memberId?: string) => {
@@ -656,7 +743,8 @@ export default function App() {
   const isFullySynced =
     hasSyncedFromCloud.current.members &&
     hasSyncedFromCloud.current.tasks &&
-    hasSyncedFromCloud.current.taskLogs;
+    hasSyncedFromCloud.current.taskLogs &&
+    hasSyncedFromCloud.current.taskUpdates;
 
   if (!isFullySynced && cloudStatus !== 'error') {
     return (
@@ -834,6 +922,8 @@ export default function App() {
                 members={members}
                 tasks={tasks}
                 taskLogs={taskLogs}
+                taskUpdates={taskUpdates}
+                onAddTaskUpdate={handleAddTaskUpdate}
                 onToggleTaskStatus={handleToggleTaskStatus}
                 onOpenTaskModal={() => setIsTaskModalOpen(true)}
                 onOpenVoiceModal={() => setIsVoiceModalOpen(true)}
@@ -845,6 +935,9 @@ export default function App() {
                 members={members}
                 tasks={tasks}
                 taskLogs={taskLogs}
+                taskUpdates={taskUpdates}
+                currentMember={currentMember}
+                onAddTaskUpdate={handleAddTaskUpdate}
                 onOpenTaskModal={() => setIsTaskModalOpen(true)}
                 onOpenVoiceModal={() => setIsVoiceModalOpen(true)}
                 onToggleTaskStatus={handleToggleTaskStatus}

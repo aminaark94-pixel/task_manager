@@ -20,7 +20,7 @@ export interface NotificationData {
  * Initialize FCM (Firebase Cloud Messaging)
  * Call this once when app starts
  */
-export async function initializeFCM(): Promise<void> {
+export async function initializeFCM(): Promise<string | void> {
   try {
     const messaging = getMessaging(firebaseApp);
     

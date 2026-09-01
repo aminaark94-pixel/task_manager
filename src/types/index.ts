@@ -61,6 +61,18 @@ export interface TaskLog {
   points_awarded: number;
 }
 
+export interface TaskUpdate {
+  id: string;
+  task_id: string;
+  user_id: string;
+  user_name?: string;
+  type: 'text' | 'voice';
+  text?: string;
+  audio_url?: string;
+  audio_duration_seconds?: number;
+  created_at: string;
+}
+
 export interface SupabaseConfig {
   url: string;
   anonKey: string;
