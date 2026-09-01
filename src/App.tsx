@@ -176,6 +176,7 @@ export default function App() {
 
   // Modals state
   const [isTaskModalOpen, setIsTaskModalOpen] = useState(false);
+  const [editingTask, setEditingTask] = useState<Task | null>(null);
   const [isVoiceModalOpen, setIsVoiceModalOpen] = useState(false);
   const [isExportModalOpen, setIsExportModalOpen] = useState(false);
   const [exportModalTab, setExportModalTab] = useState<'html' | 'sql' | 'guide'>('html');
@@ -848,6 +849,10 @@ export default function App() {
                 onOpenVoiceModal={() => setIsVoiceModalOpen(true)}
                 onToggleTaskStatus={handleToggleTaskStatus}
                 onDeleteTask={handleDeleteTask}
+                onEditTask={(task) => {
+                  setEditingTask(task);
+                  setIsTaskModalOpen(true);
+                }}
                 onAwardBonus={handleAwardBonus}
                 onSelectMember={(id) => {
                   setCurrentMemberId(id);
@@ -955,9 +960,16 @@ export default function App() {
       {/* Modals */}
       <TaskModal
         isOpen={isTaskModalOpen}
-        onClose={() => setIsTaskModalOpen(false)}
+        onClose={() => {
+          setIsTaskModalOpen(false);
+          setEditingTask(null);
+        }}
         members={members}
-        onSaveTask={handleSaveTask}
+        onSaveTask={(taskData) => {
+          handleSaveTask(taskData);
+          setEditingTask(null);
+        }}
+        initialTask={editingTask}
       />
 
       <VoiceAssistantModal

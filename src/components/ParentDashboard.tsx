@@ -26,6 +26,7 @@ interface ParentDashboardProps {
   onOpenVoiceModal: () => void;
   onToggleTaskStatus: (taskId: string, memberId?: string) => void;
   onDeleteTask: (taskId: string) => void;
+  onEditTask: (task: Task) => void;
   onAwardBonus: (memberId: string, bonusPoints: number) => void;
   onSelectMember: (memberId: string) => void;
   onOpenMemberModal: (memberId?: string) => void;
@@ -41,6 +42,7 @@ export const ParentDashboard: React.FC<ParentDashboardProps> = ({
   onOpenVoiceModal,
   onToggleTaskStatus,
   onDeleteTask,
+  onEditTask,
   onAwardBonus,
   onSelectMember,
   onOpenMemberModal,
@@ -346,6 +348,13 @@ export const ParentDashboard: React.FC<ParentDashboardProps> = ({
                             <span className="text-[10px] font-bold text-indigo-600 bg-indigo-50 px-1.5 py-0.5 rounded">
                               +{task.points_reward}⭐
                             </span>
+                            <button
+                              onClick={() => onEditTask(task)}
+                              className="text-slate-300 hover:text-indigo-600 p-1 transition"
+                              title="Edit task (change assignee, title, points, etc.)"
+                            >
+                              <Edit3 className="w-3.5 h-3.5" />
+                            </button>
                             <button
                               onClick={() => onDeleteTask(task.id)}
                               className="text-slate-300 hover:text-rose-600 p-1 transition"
