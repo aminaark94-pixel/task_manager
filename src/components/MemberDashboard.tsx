@@ -126,10 +126,10 @@ export const MemberDashboard: React.FC<MemberDashboardProps> = ({
           </div>
         </div>
 
-        {/* Metric 2: Habit Streak */}
+        {/* Metric 2: Habit Progress */}
         <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs flex items-center justify-between">
           <div>
-            <p className="text-xs font-bold uppercase tracking-wider text-slate-400">Daily Streak</p>
+            <p className="text-xs font-bold uppercase tracking-wider text-slate-400">Daily Progress</p>
             <h3 className="text-3xl font-extrabold text-amber-600 mt-1">🔥 {currentMember.streak} Days</h3>
             <p className="text-xs text-slate-500 mt-0.5">Consistency unlocks bonus stars</p>
           </div>

@@ -130,10 +130,10 @@ export const ParentDashboard: React.FC<ParentDashboardProps> = ({
           </div>
         </div>
 
-        {/* Card 4: Top Habit Streak */}
+        {/* Card 4: Top Habit Progress */}
         <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs flex flex-col justify-between">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-bold uppercase tracking-wider text-slate-400">Best Streak</span>
+            <span className="text-xs font-bold uppercase tracking-wider text-slate-400">Best Progress</span>
             <div className="w-8 h-8 rounded-xl bg-rose-50 text-rose-600 flex items-center justify-center">
               <Flame className="w-4 h-4" />
             </div>
@@ -246,7 +246,7 @@ export const ParentDashboard: React.FC<ParentDashboardProps> = ({
                     <span className="text-xs font-bold text-indigo-600 bg-indigo-50 px-2 py-1 rounded-lg">
                       ⭐ {member.points} pts
                     </span>
-                    <p className="text-[11px] text-slate-400 font-medium mt-0.5">🔥 {member.streak}d streak</p>
+                    <p className="text-[11px] text-slate-400 font-medium mt-0.5">🔥 {member.streak}d progress</p>
                   </div>
                   <div className="flex flex-col space-y-1">
                     <button

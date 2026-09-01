@@ -230,8 +230,8 @@ export function notifyStreakMilestone(
   memberName: string,
   streakDays: number
 ): void {
-  const title = `🔥 Streak Milestone!`;
-  const body = `${memberName} ka ${streakDays}-day streak! Badhiya! 🎯`;
+  const title = `🔥 Progress Milestone!`;
+  const body = `${memberName} ka ${streakDays}-day progress! Badhiya! 🎯`;
   
   showNotification(title, body, {
     action: 'streak-milestone',
