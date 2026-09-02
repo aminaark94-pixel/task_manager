@@ -719,10 +719,10 @@ export default function App() {
     localStorage.removeItem('parent_logged_in');
   };
 
-  const handleNotificationSettingsSave = (settings: any) => {
-    // Settings are saved to localStorage in the modal
+  const handleNotificationSettingsSave = (notifications: any[]) => {
+    // Notifications are saved to localStorage in the modal
     // Here we could update the scheduler if needed
-    console.log('Notification settings updated:', settings);
+    console.log('Notification settings updated:', notifications);
     setIsNotificationSettingsOpen(false);
   };
 
