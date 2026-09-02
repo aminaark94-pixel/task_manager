@@ -7,7 +7,8 @@ import {
   Sparkles,
   LayoutGrid,
   Lock,
-  LogOut
+  LogOut,
+  Settings
 } from 'lucide-react';
 import { FamilyMember } from '../types';
 
@@ -21,6 +22,7 @@ interface NavbarProps {
   isParentLoggedIn?: boolean;
   onOpenParentLogin?: () => void;
   onLogoutParent?: () => void;
+  onOpenNotificationSettings?: () => void;
 }
 
 export const Navbar: React.FC<NavbarProps> = ({
@@ -32,7 +34,8 @@ export const Navbar: React.FC<NavbarProps> = ({
   cloudStatus,
   isParentLoggedIn = false,
   onOpenParentLogin,
-  onLogoutParent
+  onLogoutParent,
+  onOpenNotificationSettings
 }) => {
   const getInitials = (name: string) => {
     return name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
@@ -109,16 +112,27 @@ export const Navbar: React.FC<NavbarProps> = ({
               <span className="hidden md:inline">Add Task</span>
             </button>
 
-            {/* Parent Login/Logout Button */}
+            {/* Parent Login/Logout & Settings Buttons */}
             {isParentLoggedIn ? (
-              <button
-                onClick={onLogoutParent}
-                id="btn-nav-logout-parent"
-                className="flex items-center space-x-1 bg-red-50 text-red-700 hover:bg-red-100 border border-red-200 px-3 py-1.5 rounded-xl text-xs font-bold transition"
-              >
-                <LogOut className="w-3.5 h-3.5" />
-                <span className="hidden sm:inline">Logout</span>
-              </button>
+              <>
+                <button
+                  onClick={onOpenNotificationSettings}
+                  id="btn-nav-settings"
+                  className="flex items-center space-x-1 bg-indigo-50 text-indigo-700 hover:bg-indigo-100 border border-indigo-200 px-3 py-1.5 rounded-xl text-xs font-bold transition"
+                  title="Notification settings"
+                >
+                  <Settings className="w-3.5 h-3.5" />
+                  <span className="hidden sm:inline">Settings</span>
+                </button>
+                <button
+                  onClick={onLogoutParent}
+                  id="btn-nav-logout-parent"
+                  className="flex items-center space-x-1 bg-red-50 text-red-700 hover:bg-red-100 border border-red-200 px-3 py-1.5 rounded-xl text-xs font-bold transition"
+                >
+                  <LogOut className="w-3.5 h-3.5" />
+                  <span className="hidden sm:inline">Logout</span>
+                </button>
+              </>
             ) : (
               <button
                 onClick={onOpenParentLogin}

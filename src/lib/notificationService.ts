@@ -20,7 +20,7 @@ export interface NotificationData {
  * Initialize FCM (Firebase Cloud Messaging)
  * Call this once when app starts
  */
-export async function initializeFCM(): Promise<void> {
+export async function initializeFCM(): Promise<string | void> {
   try {
     const messaging = getMessaging(firebaseApp);
     
@@ -230,8 +230,8 @@ export function notifyStreakMilestone(
   memberName: string,
   streakDays: number
 ): void {
-  const title = `🔥 Streak Milestone!`;
-  const body = `${memberName} ka ${streakDays}-day streak! Badhiya! 🎯`;
+  const title = `🔥 Progress Milestone!`;
+  const body = `${memberName} ka ${streakDays}-day progress! Badhiya! 🎯`;
   
   showNotification(title, body, {
     action: 'streak-milestone',

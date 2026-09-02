@@ -23,6 +23,8 @@ interface ParentDashboardProps {
   members: FamilyMember[];
   tasks: Task[];
   taskLogs: TaskLog[];
+  taskUpdates: TaskUpdate[];
+  onAddTaskUpdate: (update: Omit<TaskUpdate, 'id' | 'created_at'>) => void;
   onOpenTaskModal: () => void;
   onOpenVoiceModal: () => void;
   onToggleTaskStatus: (taskId: string, memberId?: string) => void;
@@ -32,8 +34,6 @@ interface ParentDashboardProps {
   onSelectMember: (memberId: string) => void;
   onOpenMemberModal: (memberId?: string) => void;
   onDeleteMember: (memberId: string) => void;
-  taskUpdates: TaskUpdate[];
-  onAddTaskUpdate: (update: Omit<TaskUpdate, 'id' | 'created_at'>) => void;
   isParentLoggedIn?: boolean;
 }
 
@@ -41,6 +41,8 @@ export const ParentDashboard: React.FC<ParentDashboardProps> = ({
   members,
   tasks,
   taskLogs,
+  taskUpdates,
+  onAddTaskUpdate,
   onOpenTaskModal,
   onOpenVoiceModal,
   onToggleTaskStatus,
@@ -50,8 +52,6 @@ export const ParentDashboard: React.FC<ParentDashboardProps> = ({
   onSelectMember,
   onOpenMemberModal,
   onDeleteMember,
-  taskUpdates,
-  onAddTaskUpdate,
   isParentLoggedIn = false
 }) => {
   const [selectedMemberFilter, setSelectedMemberFilter] = useState<string>('all');
@@ -135,10 +135,10 @@ export const ParentDashboard: React.FC<ParentDashboardProps> = ({
           </div>
         </div>
 
-        {/* Card 4: Top Habit Streak */}
+        {/* Card 4: Top Habit Progress */}
         <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs flex flex-col justify-between">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-bold uppercase tracking-wider text-slate-400">Best Streak</span>
+            <span className="text-xs font-bold uppercase tracking-wider text-slate-400">Best Progress</span>
             <div className="w-8 h-8 rounded-xl bg-rose-50 text-rose-600 flex items-center justify-center">
               <Flame className="w-4 h-4" />
             </div>
@@ -251,22 +251,24 @@ export const ParentDashboard: React.FC<ParentDashboardProps> = ({
                     <span className="text-xs font-bold text-indigo-600 bg-indigo-50 px-2 py-1 rounded-lg">
                       ⭐ {member.points} pts
                     </span>
-                    <p className="text-[11px] text-slate-400 font-medium mt-0.5">🔥 {member.streak}d streak</p>
+                    <p className="text-[11px] text-slate-400 font-medium mt-0.5">🔥 {member.streak}d progress</p>
                   </div>
                   <div className="flex flex-col space-y-1">
                     <button
                       onClick={() => onOpenMemberModal(member.id)}
-                      className="text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 p-1 rounded-lg transition"
+                      className="text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 p-2 rounded-lg transition active:bg-indigo-100 md:p-1"
                       title="Edit member"
+                      type="button"
                     >
-                      <Edit3 className="w-3.5 h-3.5" />
+                      <Edit3 className="w-4 h-4 md:w-3.5 md:h-3.5" />
                     </button>
                     <button
                       onClick={() => onDeleteMember(member.id)}
-                      className="text-slate-400 hover:text-rose-600 hover:bg-rose-50 p-1 rounded-lg transition"
+                      className="text-slate-400 hover:text-rose-600 hover:bg-rose-50 p-2 rounded-lg transition active:bg-rose-100 md:p-1"
                       title="Remove member"
+                      type="button"
                     >
-                      <Trash2 className="w-3.5 h-3.5" />
+                      <Trash2 className="w-4 h-4 md:w-3.5 md:h-3.5" />
                     </button>
                   </div>
                 </div>
@@ -325,58 +327,59 @@ export const ParentDashboard: React.FC<ParentDashboardProps> = ({
                               : 'bg-slate-50 border-slate-200 text-slate-800'
                           }`}
                         >
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center space-x-2 min-w-0 pr-2">
-                            <button
-                              onClick={() => onToggleTaskStatus(task.id, member.id)}
-                              className="shrink-0"
-                              title={isDone ? 'Mark as pending' : 'Mark as complete'}
-                            >
-                              <CheckCircle2
-                                className={`w-4 h-4 transition ${
-                                  isDone ? 'text-emerald-600 fill-emerald-100' : 'text-slate-300 hover:text-emerald-500'
-                                }`}
-                              />
-                            </button>
-                            <div className="min-w-0 truncate">
-                              <span className={`font-semibold ${isDone ? 'line-through' : ''}`}>
-                                {task.title}
-                              </span>
-                              {isMulti && (
-                                <span className="ml-1.5 text-[9px] font-bold px-1.5 py-0.2 rounded bg-indigo-100 text-indigo-700">
-                                  👥 Multi-Child
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center space-x-2 min-w-0 pr-2">
+                              <button
+                                onClick={() => onToggleTaskStatus(task.id, member.id)}
+                                className="shrink-0"
+                                title={isDone ? 'Mark as pending' : 'Mark as complete'}
+                              >
+                                <CheckCircle2
+                                  className={`w-4 h-4 transition ${
+                                    isDone ? 'text-emerald-600 fill-emerald-100' : 'text-slate-300 hover:text-emerald-500'
+                                  }`}
+                                />
+                              </button>
+                              <div className="min-w-0 truncate">
+                                <span className={`font-semibold ${isDone ? 'line-through' : ''}`}>
+                                  {task.title}
                                 </span>
-                              )}
+                                {isMulti && (
+                                  <span className="ml-1.5 text-[9px] font-bold px-1.5 py-0.2 rounded bg-indigo-100 text-indigo-700">
+                                    👥 Multi-Child
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+
+                            <div className="flex items-center space-x-1.5 shrink-0">
+                              <span className="text-[10px] font-bold text-indigo-600 bg-indigo-50 px-1.5 py-0.5 rounded">
+                                +{task.points_reward}⭐
+                              </span>
+                              <button
+                                onClick={() => onEditTask(task)}
+                                className="text-slate-300 hover:text-indigo-600 p-1 transition"
+                                title="Edit task (change assignee, title, points, etc.)"
+                              >
+                                <Edit3 className="w-3.5 h-3.5" />
+                              </button>
+                              <button
+                                onClick={() => onDeleteTask(task.id)}
+                                className="text-slate-300 hover:text-rose-600 p-2 rounded transition active:bg-rose-50 md:p-1"
+                                title="Delete task"
+                                type="button"
+                              >
+                                <Trash2 className="w-4 h-4 md:w-3.5 md:h-3.5" />
+                              </button>
                             </div>
                           </div>
 
-                          <div className="flex items-center space-x-1.5 shrink-0">
-                            <span className="text-[10px] font-bold text-indigo-600 bg-indigo-50 px-1.5 py-0.5 rounded">
-                              +{task.points_reward}⭐
-                            </span>
-                            <button
-                              onClick={() => onEditTask(task)}
-                              className="text-slate-300 hover:text-indigo-600 p-1 transition"
-                              title="Edit task (change assignee, title, points, etc.)"
-                            >
-                              <Edit3 className="w-3.5 h-3.5" />
-                            </button>
-                            <button
-                              onClick={() => onDeleteTask(task.id)}
-                              className="text-slate-300 hover:text-rose-600 p-1 transition"
-                              title="Delete task"
-                            >
-                              <Trash2 className="w-3.5 h-3.5" />
-                            </button>
-                          </div>
-                        </div>
-
-                        <TaskUpdateComposer
-                          task={task}
-                          currentMember={member}
-                          updates={taskUpdates.filter((u) => u.task_id === task.id)}
-                          onSubmit={onAddTaskUpdate}
-                        />
+                          <TaskUpdateComposer
+                            task={task}
+                            currentMember={member}
+                            updates={taskUpdates.filter((u) => u.task_id === task.id)}
+                            onSubmit={onAddTaskUpdate}
+                          />
                         </div>
                       );
                     })}

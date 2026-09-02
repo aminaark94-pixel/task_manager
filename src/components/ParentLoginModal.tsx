@@ -12,8 +12,8 @@ interface ParentLoginModalProps {
   onLoginSuccess: () => void;
 }
 
-// Simple 5-digit PIN (Mom & Dad ke liye same)
-const PARENT_PIN = "12345";
+// Simple password (Mom & Dad ke liye)
+const PARENT_PIN = "@5633Ab";
 
 export function ParentLoginModal({ isOpen, onClose, onLoginSuccess }: ParentLoginModalProps) {
   const [pin, setPin] = useState('');
@@ -67,23 +67,22 @@ export function ParentLoginModal({ isOpen, onClose, onLoginSuccess }: ParentLogi
 
         {/* Description */}
         <p className="text-sm text-slate-600 mb-6">
-          👨‍👩‍👧‍👦 Admin features ko access karne ke liye 5-digit PIN enter karo. (Sirf Mom aur Dad ke liye)
+          👨‍👩‍👧‍👦 Admin features ko access karne ke liye password enter karo. (Sirf Mom aur Dad ke liye)
         </p>
 
         {/* PIN Input */}
         <div className="mb-6">
           <label className="block text-sm font-semibold text-slate-700 mb-2">
-            5-Digit PIN Code
+            Parent Password
           </label>
           <div className="relative">
             <input
               type={showPin ? 'text' : 'password'}
               value={pin}
-              onChange={handlePinChange}
+              onChange={(e) => setPin(e.target.value)}
               onKeyPress={handleKeyPress}
-              placeholder="• • • • •"
-              maxLength={5}
-              className="w-full px-4 py-3 text-2xl text-center tracking-widest border-2 border-slate-300 rounded-lg focus:outline-none focus:border-indigo-500 transition"
+              placeholder="Enter password"
+              className="w-full px-4 py-3 text-lg tracking-wide border-2 border-slate-300 rounded-lg focus:outline-none focus:border-indigo-500 transition"
             />
             <button
               type="button"
@@ -105,9 +104,7 @@ export function ParentLoginModal({ isOpen, onClose, onLoginSuccess }: ParentLogi
         {/* Info Box */}
         <div className="mb-6 p-4 bg-blue-50 rounded-lg border border-blue-200">
           <p className="text-xs text-blue-700">
-            <span className="font-bold">💡 Note:</span> PIN default = <span className="font-mono font-bold">12345</span>
-            <br />
-            Baad mein customize kar sakte ho.
+            <span className="font-bold">🔒 Password:</span> Ask Mom or Dad for the admin password.
           </p>
         </div>
 
@@ -121,9 +118,9 @@ export function ParentLoginModal({ isOpen, onClose, onLoginSuccess }: ParentLogi
           </button>
           <button
             onClick={handleLogin}
-            disabled={pin.length !== 5}
+            disabled={pin.length === 0}
             className={`flex-1 px-4 py-3 font-semibold rounded-lg transition ${
-              pin.length === 5
+              pin.length > 0
                 ? 'bg-indigo-600 hover:bg-indigo-700 text-white'
                 : 'bg-slate-300 text-slate-500 cursor-not-allowed'
             }`}
@@ -134,7 +131,7 @@ export function ParentLoginModal({ isOpen, onClose, onLoginSuccess }: ParentLogi
 
         {/* Hint for testing */}
         <p className="text-xs text-slate-400 text-center mt-4">
-          🧪 Testing PIN: 12345
+          🔐 Admin Login Only
         </p>
       </div>
     </div>

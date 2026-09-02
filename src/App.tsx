@@ -1,4 +1,4 @@
-/**
+/**test
  * @license
  * SPDX-License-Identifier: Apache-2.0
  */
@@ -15,6 +15,7 @@ import { VoiceAssistantModal } from './components/VoiceAssistantModal';
 import { ExportDownloadModal } from './components/ExportDownloadModal';
 import { MemberFormModal } from './components/MemberFormModal';
 import { ParentLoginModal } from './components/ParentLoginModal';
+import { NotificationSettingsModal } from './components/NotificationSettingsModal';
 import {
   subscribeToMembers,
   subscribeToTasks,
@@ -197,6 +198,9 @@ export default function App() {
     return localStorage.getItem('parent_logged_in') === 'true';
   });
 
+  // Notification settings state
+  const [isNotificationSettingsOpen, setIsNotificationSettingsOpen] = useState(false);
+
   // Refs to skip writing straight back to Firestore when a state update
   // originated FROM a Firestore snapshot (avoids redundant round-trips).
   const skipCloudWrite = useRef({ members: false, tasks: false, taskLogs: false, taskUpdates: false });
@@ -229,6 +233,10 @@ export default function App() {
   useEffect(() => {
     localStorage.setItem('family_task_logs', JSON.stringify(taskLogs));
   }, [taskLogs]);
+
+  useEffect(() => {
+    localStorage.setItem('family_task_updates', JSON.stringify(taskUpdates));
+  }, [taskUpdates]);
 
   useEffect(() => {
     localStorage.setItem('family_active_member', currentMemberId);
@@ -292,7 +300,7 @@ export default function App() {
       }
     );
 
-    const unsubUpdates = subscribeToTaskUpdates(
+    const unsubTaskUpdates = subscribeToTaskUpdates(
       (cloudUpdates) => {
         skipCloudWrite.current.taskUpdates = true;
         hasSyncedFromCloud.current.taskUpdates = true;
@@ -305,6 +313,7 @@ export default function App() {
         hasSyncedFromCloud.current.taskUpdates = true;
         skipCloudWrite.current.taskUpdates = true;
         setTaskUpdates([]);
+        saveTaskUpdatesToCloud([]).catch(() => setCloudStatus('error'));
       }
     );
 
@@ -312,7 +321,7 @@ export default function App() {
       unsubMembers();
       unsubTasks();
       unsubLogs();
-      unsubUpdates();
+      unsubTaskUpdates();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -455,6 +464,9 @@ export default function App() {
     reader.readAsText(file);
   };
 
+  // Adds a text or voice reply/update on a task, from whichever member is
+  // currently viewing it. Voice notes are uploaded to Storage first, then
+  // the resulting URL is what actually gets saved on the update record.
   const handleToggleTaskStatus = (taskId: string, memberId?: string) => {
     const targetTask = tasks.find((t) => t.id === taskId);
     if (!targetTask) return;
@@ -673,6 +685,13 @@ export default function App() {
     localStorage.removeItem('parent_logged_in');
   };
 
+  const handleNotificationSettingsSave = (notifications: any[]) => {
+    // Notifications are saved to localStorage in the modal
+    // Here we could update the scheduler if needed
+    console.log('Notification settings updated:', notifications);
+    setIsNotificationSettingsOpen(false);
+  };
+
   const [quickInputTitle, setQuickInputTitle] = useState('');
 
   const handleQuickAddTask = (e?: React.FormEvent) => {
@@ -729,6 +748,7 @@ export default function App() {
         isParentLoggedIn={isParentLoggedIn}
         onOpenParentLogin={() => setIsParentLoginModalOpen(true)}
         onLogoutParent={handleParentLogout}
+        onOpenNotificationSettings={() => setIsNotificationSettingsOpen(true)}
       />
 
       {/* Main Bento Grid App Container */}
@@ -894,6 +914,7 @@ export default function App() {
                 tasks={tasks}
                 taskLogs={taskLogs}
                 taskUpdates={taskUpdates}
+                currentMember={currentMember}
                 onAddTaskUpdate={handleAddTaskUpdate}
                 onOpenTaskModal={() => setIsTaskModalOpen(true)}
                 onOpenVoiceModal={() => setIsVoiceModalOpen(true)}
@@ -1046,6 +1067,12 @@ export default function App() {
         isOpen={isParentLoginModalOpen}
         onClose={() => setIsParentLoginModalOpen(false)}
         onLoginSuccess={handleParentLoginSuccess}
+      />
+
+      <NotificationSettingsModal
+        isOpen={isNotificationSettingsOpen}
+        onClose={() => setIsNotificationSettingsOpen(false)}
+        onSave={handleNotificationSettingsSave}
       />
 
     </div>

@@ -69,7 +69,7 @@ Yeh guide aapko step-by-step batayegi ke aap is single-file Family Task Manager 
 - **Children / Spouse (Users):**
   - Apne "Today's Tasks" dekhna aur complete hone par tick lagana.
   - Confetti celebration aur reward stars hasil karna.
-  - Daily habit streak maintain karna (e.g. 🔥 5 Days streak).
+  - Daily habit progress maintain karna (e.g. 🔥 5 Days Progress).
 
 ---
 `;
