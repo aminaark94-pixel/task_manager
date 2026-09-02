@@ -249,17 +249,19 @@ export const ParentDashboard: React.FC<ParentDashboardProps> = ({
                   <div className="flex flex-col space-y-1">
                     <button
                       onClick={() => onOpenMemberModal(member.id)}
-                      className="text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 p-1 rounded-lg transition"
+                      className="text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 p-2 rounded-lg transition active:bg-indigo-100 md:p-1"
                       title="Edit member"
+                      type="button"
                     >
-                      <Edit3 className="w-3.5 h-3.5" />
+                      <Edit3 className="w-4 h-4 md:w-3.5 md:h-3.5" />
                     </button>
                     <button
                       onClick={() => onDeleteMember(member.id)}
-                      className="text-slate-400 hover:text-rose-600 hover:bg-rose-50 p-1 rounded-lg transition"
+                      className="text-slate-400 hover:text-rose-600 hover:bg-rose-50 p-2 rounded-lg transition active:bg-rose-100 md:p-1"
                       title="Remove member"
+                      type="button"
                     >
-                      <Trash2 className="w-3.5 h-3.5" />
+                      <Trash2 className="w-4 h-4 md:w-3.5 md:h-3.5" />
                     </button>
                   </div>
                 </div>
@@ -348,10 +350,11 @@ export const ParentDashboard: React.FC<ParentDashboardProps> = ({
                             </span>
                             <button
                               onClick={() => onDeleteTask(task.id)}
-                              className="text-slate-300 hover:text-rose-600 p-1 transition"
+                              className="text-slate-300 hover:text-rose-600 p-2 rounded transition active:bg-rose-50 md:p-1"
                               title="Delete task"
+                              type="button"
                             >
-                              <Trash2 className="w-3.5 h-3.5" />
+                              <Trash2 className="w-4 h-4 md:w-3.5 md:h-3.5" />
                             </button>
                           </div>
                         </div>
