@@ -15,13 +15,16 @@ import {
   Users 
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
-import { FamilyMember, Task, TaskCategory, TaskLog, getTaskAssigneeIds, isTaskAssignedTo } from '../types';
+import { FamilyMember, Task, TaskCategory, TaskLog, TaskUpdate, getTaskAssigneeIds, isTaskAssignedTo } from '../types';
+import { TaskUpdateComposer } from './TaskUpdateComposer';
 
 interface MemberDashboardProps {
   currentMember: FamilyMember;
   members: FamilyMember[];
   tasks: Task[];
   taskLogs: TaskLog[];
+  taskUpdates: TaskUpdate[];
+  onAddTaskUpdate: (update: Omit<TaskUpdate, 'id' | 'created_at'>) => void;
   onToggleTaskStatus: (taskId: string) => void;
   onOpenTaskModal: () => void;
   onOpenVoiceModal: () => void;
@@ -32,6 +35,8 @@ export const MemberDashboard: React.FC<MemberDashboardProps> = ({
   members,
   tasks,
   taskLogs,
+  taskUpdates,
+  onAddTaskUpdate,
   onToggleTaskStatus,
   onOpenTaskModal,
   onOpenVoiceModal
@@ -316,6 +321,13 @@ export const MemberDashboard: React.FC<MemberDashboardProps> = ({
                     )}
                   </button>
                 </div>
+
+                <TaskUpdateComposer
+                  task={task}
+                  currentMember={currentMember}
+                  updates={taskUpdates.filter((u) => u.task_id === task.id)}
+                  onSubmit={onAddTaskUpdate}
+                />
 
               </div>
             );

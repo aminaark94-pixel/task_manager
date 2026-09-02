@@ -16,7 +16,8 @@ import {
   Mic,
   UserCheck
 } from 'lucide-react';
-import { FamilyMember, Task, TaskLog, getTaskAssigneeIds, isTaskAssignedTo } from '../types';
+import { FamilyMember, Task, TaskLog, TaskUpdate, getTaskAssigneeIds, isTaskAssignedTo } from '../types';
+import { TaskUpdateComposer } from './TaskUpdateComposer';
 
 interface ParentDashboardProps {
   members: FamilyMember[];
@@ -31,6 +32,8 @@ interface ParentDashboardProps {
   onSelectMember: (memberId: string) => void;
   onOpenMemberModal: (memberId?: string) => void;
   onDeleteMember: (memberId: string) => void;
+  taskUpdates: TaskUpdate[];
+  onAddTaskUpdate: (update: Omit<TaskUpdate, 'id' | 'created_at'>) => void;
   isParentLoggedIn?: boolean;
 }
 
@@ -47,6 +50,8 @@ export const ParentDashboard: React.FC<ParentDashboardProps> = ({
   onSelectMember,
   onOpenMemberModal,
   onDeleteMember,
+  taskUpdates,
+  onAddTaskUpdate,
   isParentLoggedIn = false
 }) => {
   const [selectedMemberFilter, setSelectedMemberFilter] = useState<string>('all');
@@ -314,12 +319,13 @@ export const ParentDashboard: React.FC<ParentDashboardProps> = ({
                       return (
                         <div
                           key={task.id}
-                          className={`p-2.5 rounded-xl border text-xs flex items-center justify-between transition ${
+                          className={`p-2.5 rounded-xl border text-xs transition ${
                             isDone
                               ? 'bg-emerald-50/50 border-emerald-200 text-slate-400'
                               : 'bg-slate-50 border-slate-200 text-slate-800'
                           }`}
                         >
+                        <div className="flex items-center justify-between">
                           <div className="flex items-center space-x-2 min-w-0 pr-2">
                             <button
                               onClick={() => onToggleTaskStatus(task.id, member.id)}
@@ -363,6 +369,14 @@ export const ParentDashboard: React.FC<ParentDashboardProps> = ({
                               <Trash2 className="w-3.5 h-3.5" />
                             </button>
                           </div>
+                        </div>
+
+                        <TaskUpdateComposer
+                          task={task}
+                          currentMember={member}
+                          updates={taskUpdates.filter((u) => u.task_id === task.id)}
+                          onSubmit={onAddTaskUpdate}
+                        />
                         </div>
                       );
                     })}

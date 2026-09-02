@@ -66,3 +66,15 @@ export interface SupabaseConfig {
   anonKey: string;
   isConnected: boolean;
 }
+
+export interface TaskUpdate {
+  id: string;
+  task_id: string;
+  task_title?: string;
+  member_id: string;
+  member_name?: string;
+  text?: string;
+  audio_url?: string;
+  audio_duration_seconds?: number;
+  created_at: string;
+}
