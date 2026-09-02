@@ -15,6 +15,7 @@ import { VoiceAssistantModal } from './components/VoiceAssistantModal';
 import { ExportDownloadModal } from './components/ExportDownloadModal';
 import { MemberFormModal } from './components/MemberFormModal';
 import { ParentLoginModal } from './components/ParentLoginModal';
+import { NotificationSettingsModal } from './components/NotificationSettingsModal';
 import {
   subscribeToMembers,
   subscribeToTasks,
@@ -197,6 +198,9 @@ export default function App() {
   const [isParentLoggedIn, setIsParentLoggedIn] = useState(() => {
     return localStorage.getItem('parent_logged_in') === 'true';
   });
+
+  // Notification settings state
+  const [isNotificationSettingsOpen, setIsNotificationSettingsOpen] = useState(false);
 
   // Refs to skip writing straight back to Firestore when a state update
   // originated FROM a Firestore snapshot (avoids redundant round-trips).
@@ -715,6 +719,13 @@ export default function App() {
     localStorage.removeItem('parent_logged_in');
   };
 
+  const handleNotificationSettingsSave = (settings: any) => {
+    // Settings are saved to localStorage in the modal
+    // Here we could update the scheduler if needed
+    console.log('Notification settings updated:', settings);
+    setIsNotificationSettingsOpen(false);
+  };
+
   const [quickInputTitle, setQuickInputTitle] = useState('');
 
   const handleQuickAddTask = (e?: React.FormEvent) => {
@@ -771,6 +782,7 @@ export default function App() {
         isParentLoggedIn={isParentLoggedIn}
         onOpenParentLogin={() => setIsParentLoginModalOpen(true)}
         onLogoutParent={handleParentLogout}
+        onOpenNotificationSettings={() => setIsNotificationSettingsOpen(true)}
       />
 
       {/* Main Bento Grid App Container */}
@@ -1089,6 +1101,12 @@ export default function App() {
         isOpen={isParentLoginModalOpen}
         onClose={() => setIsParentLoginModalOpen(false)}
         onLoginSuccess={handleParentLoginSuccess}
+      />
+
+      <NotificationSettingsModal
+        isOpen={isNotificationSettingsOpen}
+        onClose={() => setIsNotificationSettingsOpen(false)}
+        onSave={handleNotificationSettingsSave}
       />
 
     </div>
