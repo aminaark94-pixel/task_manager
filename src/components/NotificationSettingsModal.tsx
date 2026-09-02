@@ -136,9 +136,9 @@ export function NotificationSettingsModal({ isOpen, onClose, onSave }: Notificat
                   onChange={(e) => handleMinuteChange(Number(e.target.value))}
                   className="px-3 py-2 border-2 border-slate-300 rounded-lg font-semibold text-lg focus:outline-none focus:border-indigo-500"
                 >
-                  {[0, 15, 30, 45].map(m => (
-                    <option key={m} value={m}>
-                      {m.toString().padStart(2, '0')}
+                  {Array.from({ length: 60 }, (_, i) => (
+                    <option key={i} value={i}>
+                      {i.toString().padStart(2, '0')}
                     </option>
                   ))}
                 </select>
