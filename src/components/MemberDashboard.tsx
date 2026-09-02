@@ -15,13 +15,16 @@ import {
   Users 
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
-import { FamilyMember, Task, TaskCategory, TaskLog, getTaskAssigneeIds, isTaskAssignedTo } from '../types';
+import { FamilyMember, Task, TaskCategory, TaskLog, TaskUpdate, getTaskAssigneeIds, isTaskAssignedTo } from '../types';
+import { TaskUpdateThread } from './TaskUpdateThread';
 
 interface MemberDashboardProps {
   currentMember: FamilyMember;
   members: FamilyMember[];
   tasks: Task[];
   taskLogs: TaskLog[];
+  taskUpdates: TaskUpdate[];
+  onAddTaskUpdate: (taskId: string, update: { type: 'text' | 'voice'; text?: string; audioBlob?: Blob; durationSeconds?: number }) => Promise<void> | void;
   onToggleTaskStatus: (taskId: string) => void;
   onOpenTaskModal: () => void;
   onOpenVoiceModal: () => void;
@@ -32,6 +35,8 @@ export const MemberDashboard: React.FC<MemberDashboardProps> = ({
   members,
   tasks,
   taskLogs,
+  taskUpdates,
+  onAddTaskUpdate,
   onToggleTaskStatus,
   onOpenTaskModal,
   onOpenVoiceModal
@@ -126,10 +131,10 @@ export const MemberDashboard: React.FC<MemberDashboardProps> = ({
           </div>
         </div>
 
-        {/* Metric 2: Habit Streak */}
+        {/* Metric 2: Habit Progress */}
         <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs flex items-center justify-between">
           <div>
-            <p className="text-xs font-bold uppercase tracking-wider text-slate-400">Daily Streak</p>
+            <p className="text-xs font-bold uppercase tracking-wider text-slate-400">Daily Progress</p>
             <h3 className="text-3xl font-extrabold text-amber-600 mt-1">🔥 {currentMember.streak} Days</h3>
             <p className="text-xs text-slate-500 mt-0.5">Consistency unlocks bonus stars</p>
           </div>
@@ -316,6 +321,13 @@ export const MemberDashboard: React.FC<MemberDashboardProps> = ({
                     )}
                   </button>
                 </div>
+
+                <TaskUpdateThread
+                  taskId={task.id}
+                  currentMember={currentMember}
+                  updates={taskUpdates}
+                  onAddUpdate={onAddTaskUpdate}
+                />
 
               </div>
             );

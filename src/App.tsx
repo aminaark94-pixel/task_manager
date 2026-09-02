@@ -1,4 +1,4 @@
-/**
+/**test
  * @license
  * SPDX-License-Identifier: Apache-2.0
  */
@@ -19,9 +19,12 @@ import {
   subscribeToMembers,
   subscribeToTasks,
   subscribeToTaskLogs,
+  subscribeToTaskUpdates,
   saveMembersToCloud,
   saveTasksToCloud,
-  saveTaskLogsToCloud
+  saveTaskLogsToCloud,
+  saveTaskUpdatesToCloud,
+  uploadTaskVoiceNote
 } from './lib/firestoreSync';
 import {
   initializeFCM,
@@ -29,7 +32,7 @@ import {
   notifyTaskCompletion,
   subscribeToMemberNotifications
 } from './lib/notificationService';
-import { FamilyMember, Task, TaskLog, isTaskAssignedTo, getTaskAssigneeIds } from './types';
+import { FamilyMember, Task, TaskLog, TaskUpdate, isTaskAssignedTo, getTaskAssigneeIds } from './types';
 
 // Default Family Roster
 const INITIAL_MEMBERS: FamilyMember[] = [
@@ -147,10 +150,14 @@ const INITIAL_LOGS: TaskLog[] = [
 ];
 
 export default function App() {
-  // State
+  // State — starts from the local cache if present, otherwise EMPTY (never
+  // the hardcoded demo data). Demo data is only ever introduced inside the
+  // Firestore "onMissing" callback below, confirming it's truly the very
+  // first run — this is what prevents demo data from ever silently
+  // overwriting real cloud data again.
   const [members, setMembers] = useState<FamilyMember[]>(() => {
     const saved = localStorage.getItem('family_members_data');
-    return saved ? JSON.parse(saved) : INITIAL_MEMBERS;
+    return saved ? JSON.parse(saved) : [];
   });
 
   const [currentMemberId, setCurrentMemberId] = useState<string>(() => {
@@ -160,18 +167,24 @@ export default function App() {
 
   const [tasks, setTasks] = useState<Task[]>(() => {
     const saved = localStorage.getItem('family_tasks_data');
-    return saved ? JSON.parse(saved) : INITIAL_TASKS;
+    return saved ? JSON.parse(saved) : [];
   });
 
   const [taskLogs, setTaskLogs] = useState<TaskLog[]>(() => {
     const saved = localStorage.getItem('family_task_logs');
-    return saved ? JSON.parse(saved) : INITIAL_LOGS;
+    return saved ? JSON.parse(saved) : [];
+  });
+
+  const [taskUpdates, setTaskUpdates] = useState<TaskUpdate[]>(() => {
+    const saved = localStorage.getItem('family_task_updates');
+    return saved ? JSON.parse(saved) : [];
   });
 
   const [activeTab, setActiveTab] = useState<'today' | 'parent' | 'logs'>('today');
 
   // Modals state
   const [isTaskModalOpen, setIsTaskModalOpen] = useState(false);
+  const [editingTask, setEditingTask] = useState<Task | null>(null);
   const [isVoiceModalOpen, setIsVoiceModalOpen] = useState(false);
   const [isExportModalOpen, setIsExportModalOpen] = useState(false);
   const [exportModalTab, setExportModalTab] = useState<'html' | 'sql' | 'guide'>('html');
@@ -187,7 +200,21 @@ export default function App() {
 
   // Refs to skip writing straight back to Firestore when a state update
   // originated FROM a Firestore snapshot (avoids redundant round-trips).
-  const skipCloudWrite = useRef({ members: false, tasks: false, taskLogs: false });
+  const skipCloudWrite = useRef({ members: false, tasks: false, taskLogs: false, taskUpdates: false });
+
+  // Tracks whether we've heard from Firestore at least once for each data
+  // type (either real data, or confirmation the doc doesn't exist yet).
+  // The "push local changes to cloud" effects below MUST wait for this —
+  // otherwise, on a fresh device (empty localStorage → default demo data),
+  // the push effect fires on mount BEFORE the real cloud data has loaded,
+  // silently overwriting every other device's saved members/tasks with
+  // local defaults. This was the root cause of data "disappearing".
+  const hasSyncedFromCloud = useRef({ members: false, tasks: false, taskLogs: false, taskUpdates: false });
+
+  // Tracks the last count we know the cloud legitimately had, so the guard
+  // above can tell "real deletion down to zero" apart from "empty by glitch".
+  const lastKnownCloudMemberCount = useRef(0);
+  const lastKnownCloudTaskCount = useRef(0);
 
   const currentMember = members.find((m) => m.id === currentMemberId) || members[0];
 
@@ -205,6 +232,10 @@ export default function App() {
   }, [taskLogs]);
 
   useEffect(() => {
+    localStorage.setItem('family_task_updates', JSON.stringify(taskUpdates));
+  }, [taskUpdates]);
+
+  useEffect(() => {
     localStorage.setItem('family_active_member', currentMemberId);
   }, [currentMemberId]);
 
@@ -214,12 +245,20 @@ export default function App() {
     const unsubMembers = subscribeToMembers(
       (cloudMembers) => {
         skipCloudWrite.current.members = true;
+        hasSyncedFromCloud.current.members = true;
+        lastKnownCloudMemberCount.current = cloudMembers.length;
         setMembers(cloudMembers);
         setCloudStatus('connected');
       },
       () => setCloudStatus('error'),
       () => {
-        saveMembersToCloud(members).catch(() => setCloudStatus('error'));
+        // Firestore confirms the doc genuinely doesn't exist — this really
+        // is the first run ever, so (and only so) seed with the demo set.
+        hasSyncedFromCloud.current.members = true;
+        lastKnownCloudMemberCount.current = INITIAL_MEMBERS.length;
+        skipCloudWrite.current.members = true;
+        setMembers(INITIAL_MEMBERS);
+        saveMembersToCloud(INITIAL_MEMBERS).catch(() => setCloudStatus('error'));
         setCloudStatus('connected');
       }
     );
@@ -227,24 +266,50 @@ export default function App() {
     const unsubTasks = subscribeToTasks(
       (cloudTasks) => {
         skipCloudWrite.current.tasks = true;
+        hasSyncedFromCloud.current.tasks = true;
+        lastKnownCloudTaskCount.current = cloudTasks.length;
         setTasks(cloudTasks);
         setCloudStatus('connected');
       },
       () => setCloudStatus('error'),
       () => {
-        saveTasksToCloud(tasks).catch(() => setCloudStatus('error'));
+        hasSyncedFromCloud.current.tasks = true;
+        lastKnownCloudTaskCount.current = INITIAL_TASKS.length;
+        skipCloudWrite.current.tasks = true;
+        setTasks(INITIAL_TASKS);
+        saveTasksToCloud(INITIAL_TASKS).catch(() => setCloudStatus('error'));
       }
     );
 
     const unsubLogs = subscribeToTaskLogs(
       (cloudLogs) => {
         skipCloudWrite.current.taskLogs = true;
+        hasSyncedFromCloud.current.taskLogs = true;
         setTaskLogs(cloudLogs);
         setCloudStatus('connected');
       },
       () => setCloudStatus('error'),
       () => {
-        saveTaskLogsToCloud(taskLogs).catch(() => setCloudStatus('error'));
+        hasSyncedFromCloud.current.taskLogs = true;
+        skipCloudWrite.current.taskLogs = true;
+        setTaskLogs(INITIAL_LOGS);
+        saveTaskLogsToCloud(INITIAL_LOGS).catch(() => setCloudStatus('error'));
+      }
+    );
+
+    const unsubTaskUpdates = subscribeToTaskUpdates(
+      (cloudUpdates) => {
+        skipCloudWrite.current.taskUpdates = true;
+        hasSyncedFromCloud.current.taskUpdates = true;
+        setTaskUpdates(cloudUpdates);
+        setCloudStatus('connected');
+      },
+      () => setCloudStatus('error'),
+      () => {
+        hasSyncedFromCloud.current.taskUpdates = true;
+        skipCloudWrite.current.taskUpdates = true;
+        setTaskUpdates([]);
+        saveTaskUpdatesToCloud([]).catch(() => setCloudStatus('error'));
       }
     );
 
@@ -252,6 +317,7 @@ export default function App() {
       unsubMembers();
       unsubTasks();
       unsubLogs();
+      unsubTaskUpdates();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -286,12 +352,23 @@ export default function App() {
   }, [currentMember]);
 
   // Push local changes up to Firestore (skipped when the change just came
-  // FROM Firestore, to avoid an unnecessary write-back loop).
+  // FROM Firestore, to avoid an unnecessary write-back loop — and skipped
+  // entirely until we've synced from the cloud at least once, so a fresh
+  // device never wipes other devices' data with local demo defaults).
   useEffect(() => {
     if (skipCloudWrite.current.members) {
       skipCloudWrite.current.members = false;
       return;
     }
+    if (!hasSyncedFromCloud.current.members) return;
+    // Extra safety net: never let an empty array silently wipe previously
+    // saved data (e.g. a transient render glitch) — only an explicit
+    // Restore or a real deletion down to zero members should do that.
+    if (members.length === 0 && lastKnownCloudMemberCount.current > 0) {
+      console.warn('Refused to push an empty members list over existing cloud data.');
+      return;
+    }
+    lastKnownCloudMemberCount.current = members.length;
     saveMembersToCloud(members).catch(() => setCloudStatus('error'));
   }, [members]);
 
@@ -300,6 +377,12 @@ export default function App() {
       skipCloudWrite.current.tasks = false;
       return;
     }
+    if (!hasSyncedFromCloud.current.tasks) return;
+    if (tasks.length === 0 && lastKnownCloudTaskCount.current > 0) {
+      console.warn('Refused to push an empty tasks list over existing cloud data.');
+      return;
+    }
+    lastKnownCloudTaskCount.current = tasks.length;
     saveTasksToCloud(tasks).catch(() => setCloudStatus('error'));
   }, [tasks]);
 
@@ -308,10 +391,121 @@ export default function App() {
       skipCloudWrite.current.taskLogs = false;
       return;
     }
+    if (!hasSyncedFromCloud.current.taskLogs) return;
     saveTaskLogsToCloud(taskLogs).catch(() => setCloudStatus('error'));
   }, [taskLogs]);
 
+  useEffect(() => {
+    if (skipCloudWrite.current.taskUpdates) {
+      skipCloudWrite.current.taskUpdates = false;
+      return;
+    }
+    if (!hasSyncedFromCloud.current.taskUpdates) return;
+    saveTaskUpdatesToCloud(taskUpdates).catch(() => setCloudStatus('error'));
+  }, [taskUpdates]);
+
   // Handlers
+
+  // Downloads a full JSON snapshot of members/tasks/logs — a one-click
+  // safety backup the user can restore from if data ever disappears.
+  const handleBackupNow = () => {
+    const snapshot = {
+      exportedAt: new Date().toISOString(),
+      members,
+      tasks,
+      taskLogs,
+      taskUpdates,
+    };
+    const blob = new Blob([JSON.stringify(snapshot, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `family-task-manager-backup-${new Date().toISOString().split('T')[0]}.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
+
+  // Restores members/tasks/logs from a previously downloaded backup file.
+  const handleRestoreFile = (file: File) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      try {
+        const parsed = JSON.parse(reader.result as string);
+        if (!Array.isArray(parsed.members) || !Array.isArray(parsed.tasks)) {
+          alert('This file doesn\'t look like a valid backup.');
+          return;
+        }
+        const confirmed = window.confirm(
+          `Restore ${parsed.members.length} members and ${parsed.tasks.length} tasks from this backup? This will replace what's currently loaded (and sync to the cloud for every device).`
+        );
+        if (!confirmed) return;
+
+        setMembers(parsed.members);
+        setTasks(parsed.tasks);
+        if (Array.isArray(parsed.taskLogs)) setTaskLogs(parsed.taskLogs);
+        if (Array.isArray(parsed.taskUpdates)) setTaskUpdates(parsed.taskUpdates);
+
+        // Make sure the restored data is treated as a real user change (not
+        // skipped as an echo) so it actually pushes back up to the cloud.
+        hasSyncedFromCloud.current.members = true;
+        hasSyncedFromCloud.current.tasks = true;
+        hasSyncedFromCloud.current.taskLogs = true;
+        hasSyncedFromCloud.current.taskUpdates = true;
+      } catch (e) {
+        alert('Could not read this file — make sure it\'s an unmodified backup JSON.');
+      }
+    };
+    reader.readAsText(file);
+  };
+
+  // Adds a text or voice reply/update on a task, from whichever member is
+  // currently viewing it. Voice notes are uploaded to Storage first, then
+  // the resulting URL is what actually gets saved on the update record.
+  const handleAddTaskUpdate = async (
+    taskId: string,
+    input: { type: 'text' | 'voice'; text?: string; audioBlob?: Blob; durationSeconds?: number }
+  ) => {
+    const updateId = 'update-' + Date.now();
+    const author = currentMember;
+
+    if (input.type === 'text') {
+      const newUpdate: TaskUpdate = {
+        id: updateId,
+        task_id: taskId,
+        user_id: author.id,
+        user_name: author.full_name,
+        type: 'text',
+        text: input.text,
+        created_at: new Date().toISOString()
+      };
+      hasSyncedFromCloud.current.taskUpdates = true;
+      setTaskUpdates((prev) => [...prev, newUpdate]);
+      return;
+    }
+
+    if (input.type === 'voice' && input.audioBlob) {
+      try {
+        const audioUrl = await uploadTaskVoiceNote(taskId, updateId, input.audioBlob);
+        const newUpdate: TaskUpdate = {
+          id: updateId,
+          task_id: taskId,
+          user_id: author.id,
+          user_name: author.full_name,
+          type: 'voice',
+          audio_url: audioUrl,
+          audio_duration_seconds: input.durationSeconds,
+          created_at: new Date().toISOString()
+        };
+        hasSyncedFromCloud.current.taskUpdates = true;
+        setTaskUpdates((prev) => [...prev, newUpdate]);
+      } catch (err) {
+        alert('Could not upload the voice note. Please check your connection and try again.');
+      }
+    }
+  };
+
   const handleToggleTaskStatus = (taskId: string, memberId?: string) => {
     const targetTask = tasks.find((t) => t.id === taskId);
     if (!targetTask) return;
@@ -542,6 +736,27 @@ export default function App() {
     setQuickInputTitle('');
   };
 
+  // Show a lightweight loading screen until we've heard from Firestore at
+  // least once — this guarantees the demo data (or a stale local cache)
+  // is never what the user sees or works with before the real cloud state
+  // has loaded, closing the last gap that could cause data loss.
+  const isFullySynced =
+    hasSyncedFromCloud.current.members &&
+    hasSyncedFromCloud.current.tasks &&
+    hasSyncedFromCloud.current.taskLogs &&
+    hasSyncedFromCloud.current.taskUpdates;
+
+  if (!isFullySynced && cloudStatus !== 'error') {
+    return (
+      <div className="min-h-screen bg-slate-50 flex items-center justify-center">
+        <div className="text-center space-y-3">
+          <div className="w-10 h-10 border-4 border-indigo-200 border-t-indigo-600 rounded-full animate-spin mx-auto" />
+          <p className="text-sm text-slate-500 font-semibold">Syncing with your family's data...</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900 flex flex-col font-sans antialiased">
       
@@ -663,10 +878,40 @@ export default function App() {
                 </button>
               </div>
 
-              {/* Status Indicator Chip */}
-              <div className="hidden sm:flex items-center space-x-1.5 text-xs text-slate-500 font-semibold px-2">
-                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-                <span>Live Sync Active</span>
+              {/* Status Indicator Chip + Backup/Restore */}
+              <div className="flex items-center gap-2">
+                <div className="hidden sm:flex items-center space-x-1.5 text-xs text-slate-500 font-semibold px-2">
+                  <span className={`w-2 h-2 rounded-full animate-pulse ${cloudStatus === 'connected' ? 'bg-emerald-500' : cloudStatus === 'error' ? 'bg-rose-500' : 'bg-amber-500'}`} />
+                  <span>{cloudStatus === 'connected' ? 'Live Sync Active' : cloudStatus === 'error' ? 'Sync Error' : 'Connecting...'}</span>
+                </div>
+
+                <button
+                  onClick={handleBackupNow}
+                  title="Download a backup of all members, tasks & logs"
+                  className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-600 text-xs font-bold transition cursor-pointer"
+                >
+                  <Database className="w-3.5 h-3.5" />
+                  <span className="hidden md:inline">Backup</span>
+                </button>
+
+                <label
+                  title="Restore members, tasks & logs from a backup file"
+                  className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-600 text-xs font-bold transition cursor-pointer"
+                >
+                  <History className="w-3.5 h-3.5" />
+                  <span className="hidden md:inline">Restore</span>
+                  <input
+                    type="file"
+                    accept="application/json"
+                    className="hidden"
+                    onChange={(e) => {
+                      if (e.target.files && e.target.files[0]) {
+                        handleRestoreFile(e.target.files[0]);
+                      }
+                      e.target.value = '';
+                    }}
+                  />
+                </label>
               </div>
             </div>
 
@@ -677,6 +922,8 @@ export default function App() {
                 members={members}
                 tasks={tasks}
                 taskLogs={taskLogs}
+                taskUpdates={taskUpdates}
+                onAddTaskUpdate={handleAddTaskUpdate}
                 onToggleTaskStatus={handleToggleTaskStatus}
                 onOpenTaskModal={() => setIsTaskModalOpen(true)}
                 onOpenVoiceModal={() => setIsVoiceModalOpen(true)}
@@ -688,10 +935,17 @@ export default function App() {
                 members={members}
                 tasks={tasks}
                 taskLogs={taskLogs}
+                taskUpdates={taskUpdates}
+                currentMember={currentMember}
+                onAddTaskUpdate={handleAddTaskUpdate}
                 onOpenTaskModal={() => setIsTaskModalOpen(true)}
                 onOpenVoiceModal={() => setIsVoiceModalOpen(true)}
                 onToggleTaskStatus={handleToggleTaskStatus}
                 onDeleteTask={handleDeleteTask}
+                onEditTask={(task) => {
+                  setEditingTask(task);
+                  setIsTaskModalOpen(true);
+                }}
                 onAwardBonus={handleAwardBonus}
                 onSelectMember={(id) => {
                   setCurrentMemberId(id);
@@ -799,9 +1053,16 @@ export default function App() {
       {/* Modals */}
       <TaskModal
         isOpen={isTaskModalOpen}
-        onClose={() => setIsTaskModalOpen(false)}
+        onClose={() => {
+          setIsTaskModalOpen(false);
+          setEditingTask(null);
+        }}
         members={members}
-        onSaveTask={handleSaveTask}
+        onSaveTask={(taskData) => {
+          handleSaveTask(taskData);
+          setEditingTask(null);
+        }}
+        initialTask={editingTask}
       />
 
       <VoiceAssistantModal

@@ -5,6 +5,7 @@
 
 import { initializeApp, FirebaseApp } from 'firebase/app';
 import { getFirestore, Firestore } from 'firebase/firestore';
+import { getStorage, FirebaseStorage } from 'firebase/storage';
 
 // Your web app's Firebase configuration
 const firebaseConfig = {
@@ -18,3 +19,4 @@ const firebaseConfig = {
 
 export const firebaseApp: FirebaseApp = initializeApp(firebaseConfig);
 export const db: Firestore = getFirestore(firebaseApp);
+export const storage: FirebaseStorage = getStorage(firebaseApp);

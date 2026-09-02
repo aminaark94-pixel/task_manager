@@ -200,9 +200,9 @@ export const STANDALONE_HTML_CODE = `<!DOCTYPE html>
 
             <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs flex items-center justify-between">
               <div>
-                <p class="text-xs font-bold uppercase tracking-wider text-slate-400">Daily Streak</p>
+                <p class="text-xs font-bold uppercase tracking-wider text-slate-400">Daily Progress</p>
                 <h3 class="text-3xl font-extrabold text-rose-600 mt-1" id="statMyStreak">🔥 0 Days</h3>
-                <p class="text-xs text-slate-500 mt-0.5">Consistency streak</p>
+                <p class="text-xs text-slate-500 mt-0.5">Consistency progress</p>
               </div>
               <div class="w-12 h-12 rounded-2xl bg-rose-50 text-rose-600 flex items-center justify-center">
                 <i data-lucide="flame" class="w-6 h-6"></i>
@@ -280,7 +280,7 @@ export const STANDALONE_HTML_CODE = `<!DOCTYPE html>
             </div>
 
             <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs flex flex-col justify-between">
-              <span class="text-xs font-bold uppercase tracking-wider text-slate-400">Top Streak</span>
+              <span class="text-xs font-bold uppercase tracking-wider text-slate-400">Top Progress</span>
               <div class="mt-3">
                 <h3 class="text-3xl font-extrabold text-rose-600" id="parentStatStreak">🔥 0d</h3>
                 <p class="text-xs text-slate-500 mt-1">Daily consistency</p>
