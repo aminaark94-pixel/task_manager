@@ -120,36 +120,56 @@ export function listenForMessages(): void {
 }
 
 /**
- * Show browser notification
+ * Show a notification — routes through the Service Worker's
+ * showNotification() when available, since most mobile browsers (Android
+ * Chrome in particular) silently ignore or throw on the plain
+ * `new Notification()` constructor and REQUIRE the Service Worker API for
+ * a notification to actually appear in the phone's notification tray.
+ * Desktop browsers support both; this path works everywhere.
  */
-export function showNotification(
+export async function showNotification(
   title: string,
   body: string,
   data?: Record<string, string>
-): Notification | null {
+): Promise<void> {
   if (!('Notification' in window)) {
     console.log('📵 Notifications not supported');
-    return null;
+    return;
   }
-  
+
   if (Notification.permission !== 'granted') {
     console.log('📵 Notification permission not granted');
-    return null;
+    return;
   }
-  
-  const notification = new Notification(title, {
+
+  const options: NotificationOptions = {
     body,
     icon: '/family-icon.png',
     badge: '/family-badge.png',
     tag: 'family-task-notification',
     requireInteraction: false,
-    ...data
-  });
-  
-  // Auto close after 5 seconds
-  setTimeout(() => notification.close(), 5000);
-  
-  return notification;
+    data,
+  };
+
+  try {
+    if ('serviceWorker' in navigator) {
+      const registration = await navigator.serviceWorker.ready;
+      if (registration && 'showNotification' in registration) {
+        await registration.showNotification(title, options);
+        return;
+      }
+    }
+  } catch (error) {
+    console.log('⚠️ Service worker notification failed, falling back:', error);
+  }
+
+  // Fallback for browsers without an active service worker (mainly desktop).
+  try {
+    const notification = new Notification(title, options);
+    setTimeout(() => notification.close(), 5000);
+  } catch (error) {
+    console.log('⚠️ Could not show notification:', error);
+  }
 }
 
 /**
