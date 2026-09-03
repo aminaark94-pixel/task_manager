@@ -30,7 +30,9 @@ import {
   initializeFCM,
   listenForMessages,
   notifyTaskCompletion,
-  subscribeToMemberNotifications
+  subscribeToMemberNotifications,
+  startScheduledNotificationChecker,
+  stopScheduledNotificationChecker
 } from './lib/notificationService';
 import { FamilyMember, Task, TaskLog, TaskUpdate, isTaskAssignedTo, getTaskAssigneeIds } from './types';
 
@@ -342,6 +344,7 @@ export default function App() {
         
         await initializeFCM();
         listenForMessages();
+        startScheduledNotificationChecker();
         
         // Subscribe current member to their notifications
         if (currentMember) {

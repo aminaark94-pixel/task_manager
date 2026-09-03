@@ -281,3 +281,94 @@ export function clearSubscriptions(): void {
   localStorage.removeItem('fcm_subscriptions');
   localStorage.removeItem('fcm_token');
 }
+
+// ─────────────────────────────────────────────────────────────
+// Scheduled Reminder Notifications
+// ─────────────────────────────────────────────────────────────
+// The settings modal only ever SAVED the schedule to localStorage — nothing
+// ever read it back and actually fired a notification. This is the missing
+// piece: call startScheduledNotificationChecker() once when the app mounts,
+// and it polls every 20s, comparing the current local time/day against each
+// saved schedule, firing a real Notification (+ sound) when they match.
+const FIRED_TODAY_KEY = 'notifications_fired_today';
+
+function getFiredTodayMap(): Record<string, string> {
+  try {
+    return JSON.parse(localStorage.getItem(FIRED_TODAY_KEY) || '{}');
+  } catch {
+    return {};
+  }
+}
+
+function markFiredToday(notificationId: string, dateStr: string): void {
+  const map = getFiredTodayMap();
+  map[notificationId] = dateStr;
+  localStorage.setItem(FIRED_TODAY_KEY, JSON.stringify(map));
+}
+
+function alreadyFiredToday(notificationId: string, dateStr: string): boolean {
+  const map = getFiredTodayMap();
+  return map[notificationId] === dateStr;
+}
+
+/**
+ * Checks every scheduled notification against the current time and fires
+ * any that match (and haven't already fired today). Call this on an
+ * interval — see startScheduledNotificationChecker below.
+ */
+export function checkAndFireScheduledNotifications(): void {
+  let list: Array<{
+    id: string;
+    hour: number;
+    minute: number;
+    message: string;
+    days: number[];
+    soundEnabled: boolean;
+  }> = [];
+
+  try {
+    list = JSON.parse(localStorage.getItem('notifications_list') || '[]');
+  } catch {
+    return;
+  }
+
+  if (list.length === 0) return;
+
+  const now = new Date();
+  const currentDay = now.getDay(); // 0=Sun..6=Sat
+  const currentHour = now.getHours();
+  const currentMinute = now.getMinutes();
+  const todayStr = now.toISOString().split('T')[0];
+
+  list.forEach((notif) => {
+    if (!notif.days.includes(currentDay)) return;
+    if (notif.hour !== currentHour || notif.minute !== currentMinute) return;
+    if (alreadyFiredToday(notif.id, todayStr)) return;
+
+    markFiredToday(notif.id, todayStr);
+    showNotification('📋 Family Task Manager', notif.message);
+    if (notif.soundEnabled) {
+      playNotificationSound();
+    }
+  });
+}
+
+let schedulerIntervalId: ReturnType<typeof setInterval> | null = null;
+
+/**
+ * Starts the background poller that checks scheduled notifications every
+ * 20 seconds. Safe to call multiple times — only ever runs one interval.
+ * Call once when the app mounts (e.g. in App.tsx's init effect).
+ */
+export function startScheduledNotificationChecker(): void {
+  if (schedulerIntervalId) return; // already running
+  checkAndFireScheduledNotifications(); // check immediately on start too
+  schedulerIntervalId = setInterval(checkAndFireScheduledNotifications, 20000);
+}
+
+export function stopScheduledNotificationChecker(): void {
+  if (schedulerIntervalId) {
+    clearInterval(schedulerIntervalId);
+    schedulerIntervalId = null;
+  }
+}

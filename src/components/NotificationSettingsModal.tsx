@@ -6,7 +6,7 @@
 import React, { useState, useEffect } from 'react';
 import { X, Save, Plus, Trash2 } from 'lucide-react';
 
-interface Notification {
+export interface ScheduledNotification {
   id: string;
   hour: number;
   minute: number;
@@ -18,12 +18,12 @@ interface Notification {
 interface NotificationSettingsModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSave: (notifications: Notification[]) => void;
+  onSave: (notifications: ScheduledNotification[]) => void;
 }
 
 const DAYS_OF_WEEK = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 
-const DEFAULT_NOTIFICATION: Notification = {
+const DEFAULT_NOTIFICATION: ScheduledNotification = {
   id: 'notif-' + Date.now(),
   hour: 19,
   minute: 0,
@@ -33,7 +33,7 @@ const DEFAULT_NOTIFICATION: Notification = {
 };
 
 export function NotificationSettingsModal({ isOpen, onClose, onSave }: NotificationSettingsModalProps) {
-  const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [notifications, setNotifications] = useState<ScheduledNotification[]>([]);
   const [saved, setSaved] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
 
@@ -53,7 +53,7 @@ export function NotificationSettingsModal({ isOpen, onClose, onSave }: Notificat
   }, [isOpen]);
 
   const handleAddNotification = () => {
-    const newNotif: Notification = {
+    const newNotif: ScheduledNotification = {
       ...DEFAULT_NOTIFICATION,
       id: 'notif-' + Date.now()
     };
@@ -68,7 +68,7 @@ export function NotificationSettingsModal({ isOpen, onClose, onSave }: Notificat
     }
   };
 
-  const handleUpdateNotification = (id: string, updates: Partial<Notification>) => {
+  const handleUpdateNotification = (id: string, updates: Partial<ScheduledNotification>) => {
     setNotifications(
       notifications.map(n => (n.id === id ? { ...n, ...updates } : n))
     );
@@ -137,36 +137,19 @@ export function NotificationSettingsModal({ isOpen, onClose, onSave }: Notificat
               </div>
 
               {/* Time */}
-              <div className="mb-4 grid grid-cols-2 gap-4">
-                <div className="flex items-center gap-2">
-                  <label className="text-xs font-semibold text-slate-600">Hour:</label>
-                  <select
-                    value={notif.hour}
-                    onChange={(e) => handleUpdateNotification(notif.id, { hour: Number(e.target.value) })}
-                    className="flex-1 px-3 py-2 border-2 border-slate-300 rounded-lg font-semibold text-lg focus:outline-none focus:border-indigo-500"
-                  >
-                    {Array.from({ length: 24 }, (_, i) => (
-                      <option key={i} value={i}>
-                        {i.toString().padStart(2, '0')}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                <div className="flex items-center gap-2">
-                  <label className="text-xs font-semibold text-slate-600">Minute:</label>
-                  <select
-                    value={notif.minute}
-                    onChange={(e) => handleUpdateNotification(notif.id, { minute: Number(e.target.value) })}
-                    className="flex-1 px-3 py-2 border-2 border-slate-300 rounded-lg font-semibold text-lg focus:outline-none focus:border-indigo-500"
-                  >
-                    {Array.from({ length: 60 }, (_, i) => (
-                      <option key={i} value={i}>
-                        {i.toString().padStart(2, '0')}
-                      </option>
-                    ))}
-                  </select>
-                </div>
+              <div className="mb-4">
+                <label className="text-xs font-semibold text-slate-600 block mb-1.5">Time:</label>
+                <input
+                  type="time"
+                  value={`${notif.hour.toString().padStart(2, '0')}:${notif.minute.toString().padStart(2, '0')}`}
+                  onChange={(e) => {
+                    const [h, m] = e.target.value.split(':').map(Number);
+                    if (!isNaN(h) && !isNaN(m)) {
+                      handleUpdateNotification(notif.id, { hour: h, minute: m });
+                    }
+                  }}
+                  className="w-full px-3 py-2.5 border-2 border-slate-300 rounded-lg font-semibold text-lg focus:outline-none focus:border-indigo-500"
+                />
               </div>
 
               {/* Time Display */}
