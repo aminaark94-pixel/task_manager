@@ -4,7 +4,8 @@
  */
 
 import React, { useState, useEffect } from 'react';
-import { X, Save, Plus, Trash2 } from 'lucide-react';
+import { X, Save, Plus, Trash2, Bell, BellOff, BellRing, Send } from 'lucide-react';
+import { showNotification, playNotificationSound } from '../lib/notificationService';
 
 export interface ScheduledNotification {
   id: string;
@@ -34,6 +35,26 @@ const DEFAULT_NOTIFICATION: ScheduledNotification = {
 
 export function NotificationSettingsModal({ isOpen, onClose, onSave }: NotificationSettingsModalProps) {
   const [notifications, setNotifications] = useState<ScheduledNotification[]>([]);
+  const [permissionStatus, setPermissionStatus] = useState<NotificationPermission | 'unsupported'>(
+    typeof Notification !== 'undefined' ? Notification.permission : 'unsupported'
+  );
+  const [testSent, setTestSent] = useState(false);
+
+  const handleEnableNotifications = async () => {
+    if (typeof Notification === 'undefined') {
+      setPermissionStatus('unsupported');
+      return;
+    }
+    const result = await Notification.requestPermission();
+    setPermissionStatus(result);
+  };
+
+  const handleSendTestNotification = () => {
+    showNotification('🔔 Test Notification', 'If you can see this, notifications are working!');
+    playNotificationSound();
+    setTestSent(true);
+    setTimeout(() => setTestSent(false), 3000);
+  };
   const [saved, setSaved] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
 
@@ -118,6 +139,62 @@ export function NotificationSettingsModal({ isOpen, onClose, onSave }: Notificat
           <button onClick={onClose} className="text-slate-400 hover:text-slate-600">
             <X className="w-5 h-5" />
           </button>
+        </div>
+
+        {/* Permission Status Banner — shows exactly why notifications might not be firing */}
+        <div className={`mb-6 p-4 rounded-xl border-2 flex flex-col sm:flex-row sm:items-center gap-3 ${
+          permissionStatus === 'granted'
+            ? 'bg-emerald-50 border-emerald-200'
+            : permissionStatus === 'denied'
+            ? 'bg-rose-50 border-rose-200'
+            : 'bg-amber-50 border-amber-200'
+        }`}>
+          <div className="flex items-center gap-2 flex-1">
+            {permissionStatus === 'granted' ? (
+              <BellRing className="w-5 h-5 text-emerald-600 shrink-0" />
+            ) : (
+              <BellOff className="w-5 h-5 text-rose-600 shrink-0" />
+            )}
+            <div className="text-sm">
+              {permissionStatus === 'granted' && (
+                <span className="font-semibold text-emerald-800">Notifications are enabled on this device/browser.</span>
+              )}
+              {permissionStatus === 'denied' && (
+                <span className="font-semibold text-rose-800">
+                  Notifications are BLOCKED for this site. Open your browser's site settings and allow notifications, then reload this page.
+                </span>
+              )}
+              {permissionStatus === 'default' && (
+                <span className="font-semibold text-amber-800">Notifications haven't been enabled yet — tap "Enable" below.</span>
+              )}
+              {permissionStatus === 'unsupported' && (
+                <span className="font-semibold text-amber-800">
+                  This browser doesn't support notifications (common on iPhone Safari unless the app is added to your Home Screen).
+                </span>
+              )}
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2 shrink-0">
+            {permissionStatus !== 'granted' && permissionStatus !== 'unsupported' && (
+              <button
+                onClick={handleEnableNotifications}
+                className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold"
+              >
+                <Bell className="w-3.5 h-3.5" />
+                Enable
+              </button>
+            )}
+            {permissionStatus === 'granted' && (
+              <button
+                onClick={handleSendTestNotification}
+                className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg bg-slate-700 hover:bg-slate-800 text-white text-xs font-bold"
+              >
+                <Send className="w-3.5 h-3.5" />
+                {testSent ? 'Sent!' : 'Send Test Now'}
+              </button>
+            )}
+          </div>
         </div>
 
         {/* Notifications List */}
