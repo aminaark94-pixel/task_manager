@@ -108,7 +108,36 @@ function stripUndefinedDeep(value: any): any {
   return value;
 }
 
+// ─────────────────────────────────────────────────────────────
+// Hard guard: never let the OLD placeholder demo family (Sara, Ali,
+// Hamza — ids "parent-2"/"child-1"/"child-2"/"child-3") be written to
+// Firestore once real family data has ever existed there. This blocks the
+// specific known-bad dataset outright, regardless of which code path or
+// stale browser tab tried to push it — the real fix for the recurring
+// "data reverts to sample" bug, on top of (not instead of) the sync-order
+// fix already in App.tsx.
+// ─────────────────────────────────────────────────────────────
+const OLD_DEMO_MEMBER_IDS = new Set(['parent-2', 'child-1', 'child-2', 'child-3']);
+let realMembersSeenOnThisDevice = false;
+
+function containsOldDemoMembers(members: FamilyMember[]): boolean {
+  return members.some((m) => OLD_DEMO_MEMBER_IDS.has(m.id));
+}
+
 export async function saveMembersToCloud(members: FamilyMember[]): Promise<void> {
+  const isOldDemoData = containsOldDemoMembers(members);
+
+  if (isOldDemoData && realMembersSeenOnThisDevice) {
+    console.error(
+      '🚫 BLOCKED: refused to save the old demo family (Sara/Ali/Hamza) to Firestore — real family data was already loaded on this device. This should never happen; please report this.'
+    );
+    return;
+  }
+
+  if (!isOldDemoData && members.length > 0) {
+    realMembersSeenOnThisDevice = true;
+  }
+
   await setDoc(MEMBERS_DOC, { list: stripUndefinedDeep(members), updated_at: new Date().toISOString() });
 }
 

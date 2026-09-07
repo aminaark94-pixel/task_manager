@@ -37,117 +37,290 @@ import {
 import { FamilyMember, Task, TaskLog, TaskUpdate, isTaskAssignedTo, getTaskAssigneeIds } from './types';
 
 // Default Family Roster
+// Seed data used ONLY if Firestore genuinely has no data yet for this
+// family (see the onMissing callbacks below). This mirrors the real
+// family's current data as of 2026-09-07 — but Dad's streak is deliberately
+// set to 32 here (his real streak is 12) purely as a canary: if this seed
+// data is ever what's showing on screen instead of your real data, the
+// "Family Best Streak" badge will read 32 instead of 12, and you'll know
+// instantly that something reverted — the actual latest data always lives
+// in Firestore, and the "Backup"/"Restore" buttons are the reliable way to
+// recover it if that ever happens.
 const INITIAL_MEMBERS: FamilyMember[] = [
-  { id: 'parent-1', full_name: 'Dad', role: 'parent', email: 'dad@family.com', points: 280, streak: 12, color: 'bg-blue-600' },
-  { id: 'parent-2', full_name: 'Mom', role: 'parent', email: 'mom@family.com', points: 310, streak: 15, color: 'bg-purple-600' },
-  { id: 'child-1', full_name: 'Ali', role: 'child', email: 'ali@family.com', points: 140, streak: 5, color: 'bg-emerald-600' },
-  { id: 'child-2', full_name: 'Sara', role: 'child', email: 'sara@family.com', points: 195, streak: 8, color: 'bg-amber-600' },
-  { id: 'child-3', full_name: 'Hamza', role: 'child', email: 'hamza@family.com', points: 80, streak: 3, color: 'bg-rose-600' }
+  { id: 'parent-1', full_name: 'Dad', role: 'parent', email: 'dad@family.com', points: 280, streak: 32, color: 'bg-blue-600' },
+  { id: 'member-1788220686024', full_name: 'Amna', role: 'parent', email: 'amna@family.com', points: 0, streak: 0, color: 'bg-purple-600' },
+  { id: 'member-1788220702002', full_name: 'Hijab', role: 'child', email: 'hijab@family.com', points: 30, streak: 3, color: 'bg-emerald-600' },
+  { id: 'member-1788220713131', full_name: 'Nooh', role: 'child', email: 'nooh@family.com', points: 30, streak: 3, color: 'bg-orange-600' },
+  { id: 'member-1788220721009', full_name: 'Hud', role: 'child', email: 'hud@family.com', points: 20, streak: 2, color: 'bg-rose-600' }
 ];
 
 const INITIAL_TASKS: Task[] = [
   {
-    id: 'task-1',
-    title: 'Morning Fajr Prayer & Quran Recitation',
-    description: 'Read 2 pages of Surah Yaseen after morning Fajr.',
-    category: 'deen',
-    priority: 'high',
-    recurrence_type: 'daily',
-    assigned_to: ['child-1', 'child-2'], // Shared multi-child task for Ali & Sara
-    created_by: 'parent-1',
-    points_reward: 15,
-    is_active: true,
-    created_at: new Date().toISOString()
-  },
-  {
-    id: 'task-2',
-    title: 'Complete Mathematics Homework (Algebra Ch 4)',
-    description: 'Solve exercises 4.1 to 4.3 and double-check formulas.',
+    id: 'task-1788750466278',
+    title: '30 min Hud ko English Tenses seekhao.',
+    description: 'is me sikhana hai Nooh ko Hud ko Tenses 1 by 1 all 12 bht pyar se or smjha kr daantna bilkul nahi hai.',
     category: 'homework',
     priority: 'high',
-    recurrence_type: 'none',
-    assigned_to: 'child-1',
-    created_by: 'parent-1',
-    points_reward: 20,
+    recurrence_type: 'daily',
+    assigned_to: ['child-1', 'member-1788220713131'],
+    created_by: 'member-1788220702002',
+    points_reward: 10,
     is_active: true,
-    due_date: new Date().toISOString().split('T')[0],
-    created_at: new Date().toISOString()
+    due_date: '2026-09-07',
+    created_at: '2026-09-07T03:07:46.278Z'
   },
   {
-    id: 'task-3',
-    title: 'Clean Room & Organize Bookshelf',
-    description: 'Tidy up the study desk and put clean clothes in closet.',
+    id: 'task-1788750415759',
+    title: '30 min Nooh se English Tenses seekho.',
+    description: '30 min conversation alag hai Hud is me tm Nooh se Tenses seekho gey 30 min k liye daily.',
+    category: 'homework',
+    priority: 'high',
+    recurrence_type: 'daily',
+    assigned_to: ['child-1', 'member-1788220721009'],
+    created_by: 'member-1788220702002',
+    points_reward: 10,
+    is_active: true,
+    due_date: '2026-09-07',
+    created_at: '2026-09-07T03:06:55.759Z'
+  },
+  {
+    id: 'task-1788281446161',
+    title: 'Sipara class',
+    description: '',
+    category: 'homework',
+    priority: 'high',
+    recurrence_type: 'daily',
+    assigned_to: 'member-1788220721009',
+    created_by: 'parent-1',
+    points_reward: 10,
+    is_active: true,
+    due_date: '2026-09-01',
+    created_at: '2026-09-01T16:50:46.161Z'
+  },
+  {
+    id: 'task-1788281362144',
+    title: 'samaan laani',
+    description: '',
+    category: 'homework',
+    priority: 'high',
+    recurrence_type: 'daily',
+    assigned_to: 'member-1788220713131',
+    created_by: 'parent-1',
+    points_reward: 10,
+    is_active: true,
+    due_date: '2026-09-01',
+    created_at: '2026-09-01T16:49:22.144Z'
+  },
+  {
+    id: 'task-1788281342169',
+    title: 'coding / english',
+    description: '',
+    category: 'homework',
+    priority: 'high',
+    recurrence_type: 'daily',
+    assigned_to: 'member-1788220713131',
+    created_by: 'parent-1',
+    points_reward: 10,
+    is_active: true,
+    due_date: '2026-09-01',
+    created_at: '2026-09-01T16:49:02.169Z'
+  },
+  {
+    id: 'task-1788281297261',
+    title: '2 hours test',
+    description: '',
     category: 'chores',
-    priority: 'medium',
+    priority: 'high',
     recurrence_type: 'daily',
-    assigned_to: ['child-1', 'child-2', 'child-3'], // Multi-child chore for all kids
-    created_by: 'parent-2',
+    assigned_to: 'member-1788220702002',
+    created_by: 'parent-1',
     points_reward: 10,
     is_active: true,
-    created_at: new Date().toISOString()
+    due_date: '2026-09-01',
+    created_at: '2026-09-01T16:48:17.261Z'
   },
   {
-    id: 'task-4',
-    title: 'Science Project Solar System Model',
-    description: 'Prepare planets chart and paint Styrofoam spheres.',
+    id: 'task-1788281285897',
+    title: '5 hours Study',
+    description: '',
+    category: 'chores',
+    priority: 'high',
+    recurrence_type: 'daily',
+    assigned_to: 'member-1788220702002',
+    created_by: 'parent-1',
+    points_reward: 10,
+    is_active: true,
+    due_date: '2026-09-01',
+    created_at: '2026-09-01T16:48:05.897Z'
+  },
+  {
+    id: 'task-1788281260458',
+    title: 'dusting',
+    description: '',
+    category: 'chores',
+    priority: 'high',
+    recurrence_type: 'custom',
+    recurrence_interval: 2,
+    assigned_to: 'member-1788220702002',
+    created_by: 'parent-1',
+    points_reward: 10,
+    is_active: true,
+    due_date: '2026-09-01',
+    created_at: '2026-09-01T16:47:40.458Z'
+  },
+  {
+    id: 'task-1788281253195',
+    title: 'Sweep the floor',
+    description: '',
+    category: 'chores',
+    priority: 'high',
+    recurrence_type: 'custom',
+    recurrence_interval: 2,
+    assigned_to: 'member-1788220702002',
+    created_by: 'parent-1',
+    points_reward: 10,
+    is_active: true,
+    due_date: '2026-09-01',
+    created_at: '2026-09-01T16:47:33.195Z'
+  },
+  {
+    id: 'task-1788280881925',
+    title: 'Blender 2 hours class',
+    description: '',
     category: 'homework',
     priority: 'high',
-    recurrence_type: 'weekly',
-    recurrence_days: [1, 3, 5], // Mon, Wed, Fri
-    assigned_to: 'child-2',
-    created_by: 'parent-1',
-    points_reward: 25,
-    is_active: true,
-    created_at: new Date().toISOString()
-  },
-  {
-    id: 'task-5',
-    title: 'Drink 6 Glasses of Water & 20 min Jog',
-    description: 'Stay hydrated through the day and do evening garden jog.',
-    category: 'health',
-    priority: 'medium',
     recurrence_type: 'daily',
-    assigned_to: ['child-2', 'child-3'],
-    created_by: 'parent-2',
-    points_reward: 15,
-    is_active: true,
-    created_at: new Date().toISOString()
-  },
-  {
-    id: 'task-6',
-    title: 'Read 20 Minutes of English Storybook',
-    description: 'Read Chapter 3 of Treasure Island and write 3 new vocabulary words.',
-    category: 'reading',
-    priority: 'low',
-    recurrence_type: 'daily',
-    assigned_to: 'child-3',
+    assigned_to: 'member-1788220721009',
     created_by: 'parent-1',
     points_reward: 10,
     is_active: true,
-    created_at: new Date().toISOString()
+    due_date: '2026-09-01',
+    created_at: '2026-09-01T16:41:21.925Z'
+  },
+  {
+    id: 'task-1788220777065',
+    title: 'English Coversation 30 min',
+    description: '',
+    category: 'general',
+    priority: 'high',
+    recurrence_type: 'daily',
+    assigned_to: ['child-1', 'member-1788220702002', 'member-1788220721009', 'member-1788220713131'],
+    created_by: 'parent-1',
+    points_reward: 10,
+    is_active: true,
+    due_date: '2026-08-31',
+    created_at: '2026-08-31T23:59:37.065Z'
+  },
+  {
+    id: 'task-1788220758156',
+    title: 'Exercise',
+    description: '',
+    category: 'health',
+    priority: 'high',
+    recurrence_type: 'daily',
+    assigned_to: ['child-1', 'member-1788220702002', 'member-1788220721009', 'member-1788220713131'],
+    created_by: 'parent-1',
+    points_reward: 10,
+    is_active: true,
+    due_date: '2026-08-31',
+    created_at: '2026-08-31T23:59:18.156Z'
+  },
+  {
+    id: 'task-1788220740798',
+    title: 'Quran Class',
+    description: '',
+    category: 'deen',
+    priority: 'medium',
+    recurrence_type: 'daily',
+    assigned_to: ['child-1', 'member-1788220702002', 'member-1788220721009', 'member-1788220713131'],
+    created_by: 'parent-1',
+    points_reward: 10,
+    is_active: true,
+    due_date: '2026-08-31',
+    created_at: '2026-08-31T23:59:00.798Z'
   }
 ];
 
 const INITIAL_LOGS: TaskLog[] = [
   {
-    id: 'log-1',
-    task_id: 'task-3',
-    task_title: 'Clean Room & Organize Bookshelf',
-    user_id: 'child-1',
-    user_name: 'Ali',
-    completed_at: new Date(Date.now() - 3600000).toISOString(),
+    id: 'log-1788280999016',
+    task_id: 'task-1788220740798',
+    task_title: 'Quran Class',
+    user_id: 'member-1788220721009',
+    user_name: 'Hud',
+    completed_at: '2026-09-01T16:43:19.016Z',
     status: 'completed',
     points_awarded: 10
   },
   {
-    id: 'log-2',
-    task_id: 'task-4',
-    task_title: 'Science Project Solar System Model',
-    user_id: 'child-2',
-    user_name: 'Sara',
-    completed_at: new Date(Date.now() - 7200000).toISOString(),
+    id: 'log-1788263406013',
+    task_id: 'task-1788220740798',
+    task_title: 'Quran Class',
+    user_id: 'member-1788220713131',
+    user_name: 'Nooh',
+    completed_at: '2026-09-01T11:50:06.013Z',
     status: 'completed',
-    points_awarded: 25
+    points_awarded: 10
+  },
+  {
+    id: 'log-1788263399740',
+    task_id: 'task-1788220777065',
+    task_title: 'English Coversation 30 min',
+    user_id: 'member-1788220713131',
+    user_name: 'Nooh',
+    completed_at: '2026-09-01T11:49:59.740Z',
+    status: 'completed',
+    points_awarded: 10
+  },
+  {
+    id: 'log-1788263389036',
+    task_id: 'task-1788220777065',
+    task_title: 'English Coversation 30 min',
+    user_id: 'member-1788220702002',
+    user_name: 'Hijab',
+    completed_at: '2026-09-01T11:49:49.036Z',
+    status: 'completed',
+    points_awarded: 10
+  },
+  {
+    id: 'log-1788256866673',
+    task_id: 'task-1788220740798',
+    task_title: 'Quran Class',
+    user_id: 'member-1788220702002',
+    user_name: 'Hijab',
+    completed_at: '2026-09-01T10:01:06.673Z',
+    status: 'completed',
+    points_awarded: 10
+  },
+  {
+    id: 'log-1788250660040',
+    task_id: 'task-1788220758156',
+    task_title: 'Exercise',
+    user_id: 'member-1788220721009',
+    user_name: 'Hud',
+    completed_at: '2026-09-01T08:17:40.040Z',
+    status: 'completed',
+    points_awarded: 10
+  },
+  {
+    id: 'log-1788250653833',
+    task_id: 'task-1788220758156',
+    task_title: 'Exercise',
+    user_id: 'member-1788220713131',
+    user_name: 'Nooh',
+    completed_at: '2026-09-01T08:17:33.833Z',
+    status: 'completed',
+    points_awarded: 10
+  },
+  {
+    id: 'log-1788250612845',
+    task_id: 'task-1788220758156',
+    task_title: 'Exercise',
+    user_id: 'member-1788220702002',
+    user_name: 'Hijab',
+    completed_at: '2026-09-01T08:16:52.845Z',
+    status: 'completed',
+    points_awarded: 10
   }
 ];
 
