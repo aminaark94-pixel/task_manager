@@ -63,3 +63,48 @@ input, textarea, [contenteditable] {
   overflow-scrolling: touch;
 }
 
+/* ===== Family HQ logo animation ===== */
+
+/* Icon badge: slow breathing glow + gentle lift */
+.logo-icon-badge {
+  animation: logo-breathe 3.2s ease-in-out infinite;
+}
+
+@keyframes logo-breathe {
+  0%, 100% {
+    box-shadow: 0 4px 12px rgba(79, 70, 229, 0.25);
+    transform: translateY(0) scale(1);
+  }
+  50% {
+    box-shadow: 0 8px 22px rgba(79, 70, 229, 0.45);
+    transform: translateY(-1px) scale(1.03);
+  }
+}
+
+/* Wordmark: slow gradient sheen sweep across the text */
+.logo-wordmark {
+  background: linear-gradient(
+    100deg,
+    #1e1b4b 40%,
+    #6366f1 50%,
+    #1e1b4b 60%
+  );
+  background-size: 250% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  animation: logo-sheen 4.5s ease-in-out infinite;
+}
+
+@keyframes logo-sheen {
+  0% { background-position: 200% 0; }
+  55% { background-position: -50% 0; }
+  100% { background-position: -50% 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .logo-icon-badge,
+  .logo-wordmark {
+    animation: none;
+  }
+}
