@@ -9,12 +9,12 @@ import { getStorage, FirebaseStorage } from 'firebase/storage';
 
 // Your web app's Firebase configuration
 const firebaseConfig = {
-  apiKey: 'AIzaSyDso2Dp_BWFfOi2nm3lbfE3GuK50uU8wDk',
-  authDomain: 'family-task-manager-ab5eb.firebaseapp.com',
-  projectId: 'family-task-manager-ab5eb',
-  storageBucket: 'family-task-manager-ab5eb.firebasestorage.app',
-  messagingSenderId: '610979676329',
-  appId: '1:610979676329:web:5639a5683e20d741eba9b8'
+  apiKey: 'AIzaSyCIQQdOfHsx8-PbA43Z_JtCKfer-luPuhU',
+  authDomain: 'task-manager-33038.firebaseapp.com',
+  projectId: 'task-manager-33038',
+  storageBucket: 'task-manager-33038.firebasestorage.app',
+  messagingSenderId: '412671624515',
+  appId: '1:412671624515:web:74c40d3dcb8997fad45bf6'
 };
 
 export const firebaseApp: FirebaseApp = initializeApp(firebaseConfig);
